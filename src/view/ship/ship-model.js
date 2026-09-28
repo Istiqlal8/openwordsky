@@ -5,6 +5,7 @@ import { buildBody, buildCanopy, buildFins, buildAntenna, buildCargo, buildExoti
 import { buildWings, buildGuns } from './ship-wings.js';
 import { buildEngines, buildLegs, setFlames } from './ship-engines.js';
 import { buildBooms, buildSpineStripe } from './ship-booms.js';
+import { attachGlbHull } from './ship-glb.js';
 
 function addExtras(group, p, mats) {
   for (const fin of buildFins(p, mats)) group.add(fin);
@@ -38,11 +39,13 @@ export function buildShip(design) {
   const legs = buildLegs(p, mats);
   group.add(eng.group, legs.group);
   setFlames(eng.flames, 0, mats);
-  return {
+  const model = {
     group, engines: eng.flames, muzzles: guns.muzzles, legs: legs.group, groundOffset: legs.groundOffset,
-    length: p.length + 0.6,
+    length: p.length + 0.6, disposed: false,
     setThrust: (t) => setFlames(eng.flames, THREE.MathUtils.clamp(t, 0, 1), mats),
     setLegs: (down) => { legs.group.visible = down; },
-    dispose: () => disposeGroup(group),
+    dispose: () => { model.disposed = true; disposeGroup(group); },
   };
+  if (design.glb) attachGlbHull(model, design, mats, [eng.group, legs.group]);
+  return model;
 }

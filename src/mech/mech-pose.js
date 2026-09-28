@@ -6,7 +6,13 @@ import { MechAim } from './mech-aim.js';
 import { SaberCombo } from './mech-saber.js';
 
 const BETA = 0.62;                   // fraction of the cycle a foot spends on the ground
-const PLANT = 0.34;                  // how much wider the leading foot plants in a sidestep
+const PLANT = 0.22;                  // how much wider the leading foot plants in a sidestep
+// Mechanical limits. Without them a foot target on a rock above the hip folds the leg double and
+// the skinned mesh tears; these are the angles the frame can actually reach.
+const ROLL_MAX = 0.42;               // hip abduction
+const HIP_MIN = -1.25, HIP_MAX = 1.4;
+const KNEE_MIN = -2.1, KNEE_MAX = 0.05;
+const STAND = 0.55;                  // a foot never climbs closer than this fraction of the reach
 const _sol = { hip: 0, knee: 0 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ease = (u) => u * u * (3 - 2 * u);
@@ -84,7 +90,7 @@ export class MechPose {
     const lift = swing ? Math.sin(Math.PI * u) * d.shinL * 0.45 : 0;
     travel *= this.move;
     const lead = clamp(leg.side * side, -1, 1);
-    let dx = travel * side + side * stride * PLANT * lead * this.move;
+    let dx = clamp(travel * side + side * stride * PLANT * lead * this.move, -reach * 0.38, reach * 0.38);
     let dz = travel * fwd;
     let ankleY;
     if (env.airborne) {                 // legs tucked under the body during a jet hop
@@ -96,15 +102,27 @@ export class MechPose {
       const ground = env.groundAt(env.root.x + fx * env.cos - dz * env.sin, env.root.z - fx * env.sin - dz * env.cos);
       ankleY = ground + d.footH + lift * this.move - env.root.y;
     }
-    const roll = Math.asin(clamp(dx / reach, -0.55, 0.55));
-    solve2(d.thighL, d.shinL, dz, (ankleY - d.hipY - this.bob) / Math.cos(roll), 1, _sol);
-    leg.group.rotation.x = _sol.hip;
+    const roll = this.solveLeg(dx, dz, Math.min(ankleY - d.hipY - this.bob, -reach * STAND), reach);
+    leg.group.rotation.x = clamp(_sol.hip, HIP_MIN, HIP_MAX);
     leg.group.rotation.z = leg.side * this.brace * 0.16 + roll;
-    leg.shin.rotation.x = _sol.knee;
+    leg.shin.rotation.x = clamp(_sol.knee, KNEE_MIN, KNEE_MAX);
     leg.foot.rotation.x = -(_sol.hip + _sol.knee) - (swing ? 0.35 * this.move : 0);
     leg.foot.rotation.z = -this.side * 0.34;      // ankles roll with the sidestep
     if (!swing && !this.contact[i] && this.move > 0.2 && !env.airborne) this.onStep?.(i);
     this.contact[i] = !swing;
+  }
+
+  // Abduct the hip toward the foot, then solve the rest inside the leg's own swing plane, with the
+  // target pulled inside the leg's reach. Fills _sol and returns the abduction. -> roll
+  solveLeg(dx, dz, dy, reach) {
+    const roll = clamp(Math.atan2(dx, -dy), -ROLL_MAX, ROLL_MAX);
+    const c = Math.cos(roll), s = Math.sin(roll);
+    let inY = -dx * s + dy * c;
+    let inZ = dz;
+    const len = Math.hypot(inZ, inY);
+    if (len > reach * 0.985) { const q = (reach * 0.985) / len; inZ *= q; inY *= q; }
+    solve2(this.d.thighL, this.d.shinL, inZ, inY, 1, _sol);
+    return roll;
   }
 
   // Arms counter-swing with the legs; the gun arm swings less and yields to aiming. In a sidestep

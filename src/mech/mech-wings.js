@@ -57,7 +57,7 @@ function buildWing(m, mats, glow, side, flames, nozzle) {
   n.group.rotation.x = -0.1;
   spreadPivot.add(n.group);
   flames.push(n.flame);
-  const tip = part(rod(chord * 0.09, chord * 0.5, 6).rotateZ(Math.PI / 2), glow, side * span * 0.94, 0, chord * 0.1);
+  const tip = part(rod(chord * 0.09, chord * 0.5, 6).rotateZ(Math.PI / 2), glow, span * 0.94, 0, chord * 0.1);
   spreadPivot.add(tip);
   spreadPivot.scale.x = side;      // one geometry, mirrored
   return { root, sweepPivot, spreadPivot, panels, tip, side, span };

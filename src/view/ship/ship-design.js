@@ -13,6 +13,7 @@ const CLASSES = [
 ];
 const SUFFIX = ['Mk-II', 'Mk-III', 'Mk-IV', 'S', 'X', 'Prime', 'Nova', 'Zero', 'VII'];
 const GLOW_HUES = [0.55, 0.08, 0.6, 0.33, 0.9, 0.5];
+const STARTER_SEED = 1; // the ship a new pilot begins with wears the sculpted hull
 
 export const clampStat = (v) => Math.round(Math.max(0.7, Math.min(1.4, v)) * 100) / 100;
 
@@ -115,6 +116,7 @@ export function shipDesign(seed) {
     palette: rollPalette(rng, kind.cls),
     parts: PARTS[kind.cls](rng),
     weapon: rollWeapon(seed, kind.cls),
+    glb: seed === STARTER_SEED ? 'crimson' : null,
   };
 }
 

@@ -12,6 +12,7 @@ import { LegendWorld } from '../legend/legend-world.js';
 import { RaidWorld } from '../raid/raid-world.js';
 import { MechWorld } from '../mech/mech-world.js';
 import { WaterWorld } from '../water/water-addon.js';
+import { DuelWorld } from '../duel/duel-world.js';
 export const WORLD_ADDONS = [
   RescueBeacons,
   GuideMarkers,
@@ -22,4 +23,5 @@ export const WORLD_ADDONS = [
   RaidWorld,
   MechWorld,
   WaterWorld,
+  DuelWorld,
 ];

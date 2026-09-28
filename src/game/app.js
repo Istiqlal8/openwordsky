@@ -11,6 +11,7 @@ import { GasDive } from '../view/gas-dive/gas-dive.js';
 import { Freighter } from '../freighter/freighter.js';
 import { FreighterInterior } from '../freighter/interior.js';
 import { shipDesign } from '../view/ship/ship-design.js';
+import { preloadShipHulls } from '../view/ship/ship-glb.js';
 import { customDesign } from '../view/ship/ship-custom.js';
 import { Hud } from '../ui/hud.js';
 import { Vitals } from '../ui/hud-vitals.js';
@@ -53,6 +54,7 @@ function makeUi(hudRoot) {
 
 function initialDesign(save) {
   const spec = activeSpec(save);
+  preloadShipHulls(); // so the starter ship is never the placeholder on screen
   return spec ? customDesign(spec) : shipDesign(save.shipSeed ?? 1);
 }
 

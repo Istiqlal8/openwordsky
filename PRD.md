@@ -132,6 +132,19 @@ Added in v1.5:
   transform fee and the 5/s / 4.2/s drain. It reuses the ship's hull/shield, and the usual death
   and respawn flow applies.
 
+- **Duel mobile suit** (event, src/duel/): a named rival frame challenges the player — in space it
+  intercepts the ship inside a star system, on a planet it drops out of orbit on its thrusters and
+  lands 95 m away. Four rivals, each a real mech built from a fixed ship seed and repainted (Sabre
+  Merah closes with the blade, Vayu Biru snipes and keeps its distance, Golem Hitam is a wall, Nyx
+  Ungu is fast and erratic). In space it jousts on a ring, fires lead-aimed beam volleys and
+  commits to boost dashes with the sabre out; on the ground it walks the player down, telegraphs a
+  beam rifle shot with a thin warning line, then jet-dashes into a slash. Each rival cycles a guard
+  window that soaks most of a hit, shown as a bubble and on the health bar. The rival is registered
+  as an ordinary hostile — a `combat.pirates` entry in space, a Wildlife group on the ground — so
+  every ship gun, hand weapon, grenade and mech weapon already damages it. Transforming into your
+  own mech brings the next challenge forward. Winning pays Nanit, XP and the rival's badge
+  (`log.s.duel.wins`). Debug: `__duel.spawn(id)`, `__duel.now()`, `__duel.status()`.
+
 - **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
   then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,
   fences and decor, plus manual stations: a planter you sow and harvest with `T`, a pen you lure a

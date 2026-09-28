@@ -26,9 +26,7 @@ export class MechSurface {
     this.pos = new THREE.Vector3();
     this.velY = 0;
     this.jet = 1;
-    this.shake = 0;
-    this.heading = 0;
-    this.bodyYaw = 0;
+    this.shake = this.heading = this.bodyYaw = 0;
     this.tr = new Transform();
     this.cam = new MechCamera();
     this.att = new FlightAttitude();
@@ -212,7 +210,7 @@ export class MechSurface {
       this.velY = 0;
       if (grounded) this.jet = Math.min(1, this.jet + dt / 1.6);
     }
-    this.env.airborne = this.pos.y > floor + 0.4;
+    this.env.airborne = this.pos.y > floor + this.mech.design.d.H * 0.1;  // knee-high bumps are not flight
   }
 
   land(impact) {
@@ -233,7 +231,9 @@ export class MechSurface {
       cap: RUN * 0.8, boost: this.jets, air,
       turn: yawGap(this.heading, this.lastYaw ?? this.heading) / Math.max(dt, 0.01) });
     this.lastYaw = this.heading;
-    if (air) this.pose.fly(dt, this.jets ? 1 : 0.4, this.att);
+    // Blend on the smoothed altitude, not the raw flag: a bounce across rough ground must not
+    // snap the frame between the walk cycle and the flight pose every few frames.
+    if (this.att.air > 0.55) this.pose.fly(dt, this.jets ? 1 : 0.4, this.att);
     else this.pose.walk(dt, this.env);
     this.bodyYaw = BODY_YAW * (1 - this.pose.move * 0.72) * (1 - this.att.air);
     this.attitudeGroup(s, dt);
@@ -253,11 +253,14 @@ export class MechSurface {
     g.position.y += a.bob * d.H;
     g.rotation.order = 'YXZ';
     g.rotation.y = this.heading + this.bodyYaw + a.yaw;
-    g.rotation.z = a.roll;
+    g.rotation.z = a.roll * 0.6;
     const ahead = s.floorAt(this.pos.x - this.env.sin * d.footL, this.pos.z - this.env.cos * d.footL);
     const back = s.floorAt(this.pos.x + this.env.sin * d.footL, this.pos.z + this.env.cos * d.footL);
     const slope = Math.atan2(ahead - back, d.footL * 2) * 0.5 * (1 - a.air);
-    g.rotation.x += (slope + a.pitch - g.rotation.x) * Math.min(1, dt * (a.air > 0.5 ? 12 : 4));
+    // In gravity the frame keeps its feet under it: only a fraction of the flight lean carries over,
+    // so a jet hop or a fall across broken ground never tips the mech onto its face.
+    const lean = Math.max(-0.5, Math.min(0.5, a.pitch)) * 0.55;
+    g.rotation.x += (slope + lean - g.rotation.x) * Math.min(1, dt * (a.air > 0.5 ? 8 : 4));
   }
 
   // Footfall: dust, a heavy thud, camera shake and a crushing hit under the foot.
