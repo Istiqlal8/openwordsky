@@ -99,8 +99,8 @@ export class SaberCombo {
       this.idle += dt;
       if (this.idle > SHEATH_IDLE) this.drawT = Math.max(0, this.drawT - dt / DRAW_TIME);
     }
-    const want = this.drawT < 0.5;
-    if (want !== this.sheathed) { this.sheathed = want; this.mech.sheathSaber(want); }
+    this.sheathed = this.drawT < 0.5;
+    this.mech.drawSaber(this.drawT);      // the hilt slides out of the rack along the reach
     this.lit = this.sheathed ? Math.max(0, this.lit - dt * 6) : Math.min(1, this.lit + dt * 9);
     this.mech.setSaber(this.lit);
   }

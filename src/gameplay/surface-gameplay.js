@@ -28,6 +28,7 @@ export class SurfaceGameplay {
     const fx = new FxSystem(this.surface.scene);
     this.ctx = { surface: this.surface, player: this.player, sfx: this.sfx, fx, planet };
     this.ctx.gameplay = this; // addons read storm state (src/gameplay/night-flora.js)
+    this.sfx?.listen?.(this.surface.camera, 35); // on foot, distance is in metres
     this.mining = new MiningTool(this.ctx);
     this.life = new LifeSupport(this.player, planet);
     this.sentinels = new Sentinels(this.ctx);

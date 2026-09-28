@@ -67,7 +67,7 @@ export class MechSpaceGuns extends MechGuns {
     this.refreshMuzzles();
     const held = this.inputs(input);
     this.load.update(dt, input, held, input.uiCapture);
-    const cam = this.space.camera;
+    const cam = this.aimCamera ?? this.space.camera;   // frozen chase basis: the free-look orbit must not drag the crosshair
     this.env.dmgMul = this.space.design?.stats?.damage ?? 1;
     this.env.baseVel = this.space.velocity;
     _aim.set(0, 0, -1).applyQuaternion(cam.quaternion);
@@ -78,7 +78,7 @@ export class MechSpaceGuns extends MechGuns {
     this.saber(dt, pose);
     this.bats.main.step(dt, this.hits);
     this.bats.pod.step(dt, this.hits);
-    this.tick(dt);
+    this.tick(dt, pose);
   }
 
   // The selected mode. The saber has no battery; the pod shares the launcher with RMB.
@@ -148,7 +148,7 @@ export class MechSpaceGuns extends MechGuns {
   lungeStep(dt, k) {
     const v = this.space.velocity, step = SABER_MODE.space.lunge * k * dt;
     if (this.lockPos) _dir.subVectors(this.lockPos, this.space.shipObject.position).normalize();
-    else _dir.set(0, 0, -1).applyQuaternion(this.space.camera.quaternion);
+    else _dir.set(0, 0, -1).applyQuaternion((this.aimCamera ?? this.space.camera).quaternion);
     v.addScaledVector(_dir, step);
   }
 
@@ -159,7 +159,7 @@ export class MechSpaceGuns extends MechGuns {
     this.mech.group.updateMatrixWorld(true);
     this.mech.saberTip(_to);
     _from.copy(this.space.shipObject.position);
-    _aim.set(0, 0, -1).applyQuaternion(this.space.camera.quaternion);
+    _aim.set(0, 0, -1).applyQuaternion((this.aimCamera ?? this.space.camera).quaternion);
     const mul = this.space.design?.stats?.damage ?? 1;
     const range = s.reach * (STEP_REACH[step] ?? 1);
     const dist = this.hits.beamCast(_from, _aim, range, s.damage[step] * mul);

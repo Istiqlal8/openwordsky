@@ -14,6 +14,7 @@ import { LandedShip, findDrySpawn } from './ship/landed-ship.js';
 import { ShipLights } from './ship/ship-lights.js';
 import { Avatar } from '../character/avatar.js';
 import { SurfaceFlight } from './surface-flight.js';
+import { CameraOrbit } from './camera-orbit.js';
 
 const SIZE = 440, SEG = 110;
 const SNAP = 8;         // recenter granularity (multiple of STEP and detail tile)
@@ -38,6 +39,7 @@ export class SurfaceView {
     this.moveSpeed = 0;
     this.jet = 1;
     this.flight = new SurfaceFlight(this);
+    this.orbit = new CameraOrbit(); // hold Alt to swing the view around the explorer
     this.velY = 0;
     this.yaw = 0;
     this.pitch = 0;
@@ -164,9 +166,9 @@ export class SurfaceView {
       this.avatar.group.visible = false;
     } else {
       if (input.pressed('KeyV')) this.thirdPerson = !this.thirdPerson;
-      this.look(input);
+      this.look(input, dt);
       this.move(dt, input);
-      this.avatar.group.visible = this.thirdPerson;
+      this.avatar.group.visible = this.thirdPerson || this.orbit.live;
       this.avatar.update(dt, this.feet, this.yaw, this.moveSpeed, this.onGround);
     }
     const dx = this.feet.x - this.center.x, dz = this.feet.z - this.center.z;
@@ -181,7 +183,8 @@ export class SurfaceView {
     this.earth?.update(dt, this.camera.position);
   }
 
-  look(input) {
+  look(input, dt = 0) {
+    if (this.orbit.update(dt, input)) return; // orbiting: the mouse turns the camera, not the player
     if (!input.locked) return;
     this.yaw -= input.mouse.dx * SENS;
     this.pitch -= input.mouse.dy * SENS;
@@ -237,8 +240,9 @@ export class SurfaceView {
     this.head.set(this.feet.x, this.feet.y + EYE + bob, this.feet.z);
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     this.camera.position.copy(this.head);
-    if (!this.thirdPerson || !this.h) return;
-    this.camera.position.add(_off.copy(CHASE).applyEuler(this.camera.rotation));
+    if ((!this.thirdPerson && !this.orbit.live) || !this.h) return;
+    if (this.orbit.live) this.orbit.apply(this.camera, this.head, this.camera.quaternion, CHASE);
+    else this.camera.position.add(_off.copy(CHASE).applyEuler(this.camera.rotation));
     const cx = this.camera.position.x, cz = this.camera.position.z;
     const ground = (this.swim ? this.h(cx, cz) : this.floorAt(cx, cz)) + 0.4;
     if (this.camera.position.y < ground) this.camera.position.y = ground; // never under the terrain

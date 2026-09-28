@@ -25,7 +25,7 @@ export class WeaponRig {
     this.heat = Object.fromEntries(WEAPONS.map((w) => [w.id, { heat: 0, locked: false }]));
     this.sinceShot = 99;
     this.wheel = 0;
-    this.onWheel = (e) => { if (document.pointerLockElement) this.wheel += Math.sign(e.deltaY); };
+    this.onWheel = (e) => { if (document.pointerLockElement && !e.altKey) this.wheel += Math.sign(e.deltaY); }; // Alt+wheel zooms the orbit camera
     addEventListener('wheel', this.onWheel, { passive: true });
     this.viewmodel.setWeapon(arsenal.equipped);
   }

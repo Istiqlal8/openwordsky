@@ -1,0 +1,40 @@
+/* Water overlay: underwater wash + visor beads. Sits under the HUD, never takes input. */
+.wtr { position: fixed; inset: 0; z-index: 9; pointer-events: none; overflow: hidden; }
+
+.wtr-tint {
+  position: absolute; inset: 0; opacity: 0;
+  background:
+    radial-gradient(120% 90% at 50% 45%, rgba(40, 170, 190, 0.32) 0%, rgba(10, 74, 110, 0.72) 62%, rgba(3, 26, 46, 0.94) 100%),
+    linear-gradient(180deg, rgba(120, 220, 230, 0.18), rgba(2, 20, 40, 0.5));
+  transition: opacity 0.18s linear;
+  mix-blend-mode: multiply;
+}
+.wtr.is-under .wtr-tint { mix-blend-mode: normal; }
+
+/* Caustic shimmer across the top of the frame while submerged. */
+.wtr.is-under .wtr-tint::after {
+  content: ''; position: absolute; inset: -20% -20% auto -20%; height: 55%;
+  background: radial-gradient(60% 100% at 30% 0%, rgba(190, 245, 255, 0.22), transparent 70%),
+    radial-gradient(45% 100% at 72% 0%, rgba(160, 235, 255, 0.16), transparent 70%);
+  animation: wtr-caustic 7s ease-in-out infinite alternate;
+}
+@keyframes wtr-caustic {
+  from { transform: translate3d(-3%, 0, 0) scaleX(1); opacity: 0.75; }
+  to { transform: translate3d(4%, 1.5%, 0) scaleX(1.12); opacity: 1; }
+}
+
+.wtr-wet { position: absolute; inset: 0; opacity: 0; transition: opacity 0.25s linear; }
+.wtr-wet::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(130% 100% at 50% 50%, transparent 38%, rgba(190, 230, 245, 0.3) 100%);
+}
+.wtr-wet i {
+  position: absolute; display: block; border-radius: 52% 48% 46% 54% / 60% 58% 42% 40%;
+  background: radial-gradient(38% 34% at 36% 30%, rgba(255, 255, 255, 0.78), rgba(200, 234, 248, 0.22) 62%, rgba(150, 200, 225, 0.05) 100%);
+  box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.5), 0 1px 3px rgba(10, 30, 45, 0.28);
+  animation: wtr-run 2.6s ease-in forwards;
+}
+@keyframes wtr-run {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(46px) scale(0.55); opacity: 0.1; }
+}

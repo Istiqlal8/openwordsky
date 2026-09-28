@@ -20,7 +20,7 @@ export class Input {
       const code = this.translate(e);
       if (code && !this.keys.has(code)) this.justPressed.add(code);
       if (code) this.keys.add(code);
-      if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
+      if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Alt')) e.preventDefault();
     });
     addEventListener('keyup', (e) => { const code = this.translate(e); if (code) this.keys.delete(code); });
     addEventListener('blur', () => { this.keys.clear(); this.buttons.clear(); });

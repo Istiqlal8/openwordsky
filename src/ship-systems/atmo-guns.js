@@ -108,7 +108,7 @@ export class AtmoGuns {
   explode(pos, damage, radius, color) {
     const { fx, sfx } = this.ctx;
     fx.explode(pos, { color, size: 0.4 + radius * 0.08, debris: radius > 6 });
-    sfx?.explosion?.(Math.min(0.5, radius * 0.04));
+    sfx?.explosion?.(Math.min(0.5, radius * 0.04), pos);
     this.hits.splash(pos, radius, damage / UNIT);
     this.scorch.add(pos, radius * 0.45);
   }

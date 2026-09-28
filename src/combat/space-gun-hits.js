@@ -30,7 +30,7 @@ export class SpaceGunHits {
   explode(pos, damage, radius, color = 0xffaa55) {
     const c = this.combat;
     c.fx.explode(pos, { color, size: 0.5 + radius * 0.1, debris: radius > 6 });
-    c.sfx.explosion?.(Math.min(0.6, radius * 0.05));
+    c.sfx.explosion?.(Math.min(0.6, radius * 0.05), pos);
     for (const p of c.pirates) {
       const d = p.pos.distanceTo(pos) - p.radius;
       if (p.alive && d < radius) c.damagePirate(p, damage * (d < radius * 0.4 ? 1 : 0.5), p.pos);

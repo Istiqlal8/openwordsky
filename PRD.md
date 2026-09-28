@@ -116,13 +116,21 @@ Added in v1.5:
   derived from the active ship design — wings become shoulder binders, engines become backpack and
   calf thrusters, the cockpit becomes the head and chest hatch, hull/trim/glow colours carry over,
   and the class sets the build (fighter slim, hauler heavy, explorer sensor-headed, exotic strange
-  with a halo ring). A 1.25 s animated sequence folds ship into mech in space, in atmosphere and on
-  the ground. In space it hovers, strafes and stops dead (46 u/s cruise, 190 boosting); on a planet
-  it walks and runs with IK feet planted on the terrain, jump-jets, shakes the camera and crushes
-  what it steps on. Beam rifle (LMB), shoulder missiles (RMB) and a beam saber (middle mouse) all
-  deal damage through the existing space and surface weapon paths. It drains ship energy while
-  deployed (5/s in space, 4.2/s on foot), reuses the ship's hull/shield, and the usual death and
-  respawn flow applies.
+  with a halo ring). A ~2.3 s transformation plays in space, in atmosphere and on the ground: the
+  hull rears up with its landing legs out and engines flaring, energy columns spool up around it,
+  it spins down into a white burst with a shock ring and lens glint (time crawling through the
+  swap), and the mech spins out and locks into a stance while the camera arcs around and settles.
+  On a planet it can be triggered on foot beside the parked ship **or while flying it**, in which
+  case the mech drops out of the sky on its jets and lands in a crouch; folding back in the air
+  hands the ship over still flying. In space it hovers, strafes and stops dead (46 u/s cruise, 190
+  boosting); on a planet it walks and runs with IK feet planted on the terrain, jump-jets, shakes
+  the camera and crushes what it steps on. Six weapon modes (mouse wheel or 1–6): beam rifle,
+  bazooka, gatling, particle cannon, missile pod and a three-hit beam saber combo, with RMB always
+  the pod and middle mouse always the saber. Each has its own stance, recoil, muzzle work and
+  sound, and all of them deal damage through the existing space and surface weapon paths. Energy
+  is currently free (`UNLIMITED` in src/mech/mech-power.js); flipping that back restores the
+  transform fee and the 5/s / 4.2/s drain. It reuses the ship's hull/shield, and the usual death
+  and respawn flow applies.
 
 Out of scope: crafting trees, multiplayer, trading, base building.
 
@@ -150,7 +158,8 @@ Out of scope: crafting trees, multiplayer, trading, base building.
 | O | — | cargo board |
 | Tab / I | inventory | inventory |
 | ` | settings menu | settings menu |
-| . | ship ⇄ mech | ship ⇄ mech (near the ship) |
+| . | ship ⇄ mech | ship ⇄ mech (on foot near the ship, or while flying it) |
+| Roda / 1–6 | mech weapon mode | mech weapon mode |
 | Esc | release mouse | release mouse |
 
 ## 4. Tech

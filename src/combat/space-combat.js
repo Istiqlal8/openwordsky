@@ -35,6 +35,7 @@ export class SpaceCombat {
     this.bumpCd = 0;
     this.alarm = false;
     this.nearest = { position: null, distance: 0 };
+    this.onExtraHit = null; // optional (bolt) => boolean, set by SpaceMode
     this.bindCallbacks();
   }
 
@@ -50,7 +51,7 @@ export class SpaceCombat {
     this.rockets = new RocketPool(this.root);
     this.weapons = new PlayerWeapons({ space, player, sfx: this.sfx, fx: this.fx, bolts: this.playerBolts, rockets: this.rockets, root: this.root, hits: new SpaceGunHits(this) });
     this.ctx = { shipPos: null, shipVel: space.velocity, bolts: this.enemyBolts, bodies: [], holdFire: false,
-      onFire: () => this.sfx.enemyLaser?.() };
+      onFire: (p) => this.sfx.enemyLaser?.(p?.pos) };
     player.on('shipDestroyed', this.onDestroyed);
   }
 
@@ -67,6 +68,7 @@ export class SpaceCombat {
     if (this.fx) this.clearSystem();
     else this.build();
     this.system = system;
+    this.sfx.listen?.(this.space.camera, 160); // combat sounds are placed against the player's camera
     this.dead = this.player.dead;
     const orbits = (this.space.bodies ?? []).map((b) => b.planet?.orbit?.radius ?? 0);
     this.asteroids = new AsteroidField(this.root, system, orbits);
@@ -157,6 +159,7 @@ export class SpaceCombat {
   }
 
   playerBoltHit(b) {
+    if (this.onExtraHit?.(b)) return true; // void fauna and other non-pirate targets
     for (const p of this.pirates) {
       if (!p.alive || !segmentHits(b.prev, b.pos, p.pos, p.radius)) continue;
       this.damagePirate(p, b.damage, b.pos);
@@ -188,7 +191,7 @@ export class SpaceCombat {
   blast(pos) {
     const mult = this.weapons.damageMult;
     this.fx.explode(pos, { color: 0xffaa55, size: 1.6 });
-    this.sfx.explosion?.(0.6);
+    this.sfx.explosion?.(0.6, pos);
     for (const p of this.pirates) {
       const d = p.pos.distanceTo(pos) - p.radius;
       if (p.alive && d < ROCKET_RADIUS) this.damagePirate(p, ROCKET_DAMAGE * mult * (d < 6 ? 1 : 0.5), p.pos);
@@ -202,10 +205,10 @@ export class SpaceCombat {
   damagePirate(p, dmg, at) {
     this.fx.sparks(at, 0xffc080, 6, 0.6);
     this.player.emit('hitMarker', { kill: false });
-    this.sfx.hit?.();
+    this.sfx.hit?.(at);
     if (!p.hit(dmg)) return;
     this.fx.explode(p.pos, { color: 0xff6633, size: 2.2 });
-    this.sfx.explosion?.(0.7);
+    (this.sfx.kill ?? this.sfx.explosion)?.call(this.sfx, 0.7, p.pos);
     pirateLoot(this.player);
     this.player.emit('kill', { what: p.kind.name });
     this.player.emit('act', { type: 'pirate' });
@@ -215,17 +218,17 @@ export class SpaceCombat {
     this.fx.sparks(at, 0xd8c0a0, 4, 0.5);
     if (!this.asteroids.damage(rock, dmg)) return;
     this.fx.explode(rock.pos, { color: 0xc89060, size: 0.4 + rock.r * 0.25 });
-    this.sfx.explosion?.(0.25);
+    this.sfx.explosion?.(0.25, rock.pos);
     rockLoot(this.player, rock.r);
     this.player.emit('act', { type: 'asteroid' });
-    this.sfx.pickup?.();
+    this.sfx.pickup?.(rock.pos);
   }
 
   hurtShip(dmg, at) {
     const shielded = this.player.ship.shield > 0;
     this.player.damageShip(dmg);
-    if (shielded) this.sfx.shieldHit?.();
-    else this.sfx.hit?.();
+    if (shielded) this.sfx.shieldHit?.(at);
+    else this.sfx.hit?.(at);
     this.fx.sparks(at, shielded ? 0x66ccff : 0xffaa55, 8, 0.5);
     this.space.shake?.(0.35);
   }

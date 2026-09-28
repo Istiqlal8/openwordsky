@@ -1,5 +1,5 @@
-// Mech hardware carried over from the ship: backpack thrusters, wing binders, beam rifle and
-// the beam saber. Thruster flames reuse the ship's flame material so setFlames() drives them.
+// Mech hardware carried over from the ship: backpack thrusters, wing binders and the beam rifle.
+// Thruster flames reuse the ship's flame material so setFlames() drives them.
 import * as THREE from 'three';
 import { part } from '../view/ship/ship-materials.js';
 import { block, blade, rod } from './mech-geo.js';
@@ -83,17 +83,4 @@ export function buildRifle(m, mats) {
   g.add(part(block(r * 1.4, r * 2.4, L * 0.14, 0.9), mats.dark, 0, -r * 1.1, L * 0.02)); // magazine
   g.add(part(block(r * 1.1, r * 1.8, L * 0.12), mats.dark, 0, -r * 0.9, L * 0.16)); // grip
   return { group: g, muzzle: new THREE.Vector3(0, r * 0.5, -L * 0.86) };
-}
-
-// Beam saber: hilt plus a blade that grows out of it (scale.y 0..1).
-export function buildSaber(m, mats) {
-  const d = m.d, g = new THREE.Group(), r = d.armR * 0.42, L = d.upperL + d.foreL;
-  g.add(part(rod(r, r * 5, 8), mats.dark, 0, r * 2.5, 0));
-  g.add(part(rod(r * 1.2, r * 0.8, 8), mats.trim, 0, r * 4.6, 0));
-  const beam = part(rod(r * 0.75, L, 10).translate(0, L * 0.5, 0), mats.flame, 0, r * 5, 0);
-  const core = part(rod(r * 0.3, L, 6).translate(0, L * 0.5, 0), mats.glow, 0, r * 5, 0);
-  beam.scale.y = core.scale.y = 0.001;
-  g.add(beam, core);
-  g.rotation.x = -Math.PI / 2;
-  return { group: g, beam, core, length: L, tip: new THREE.Vector3(0, r * 5 + L, 0) };
 }

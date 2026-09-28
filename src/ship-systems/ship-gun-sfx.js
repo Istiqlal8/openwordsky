@@ -35,9 +35,10 @@ const SOUNDS = {
   },
 };
 
-export function gunSound(sfx, id) {
-  if (!sfx) return;
+// `at` is the muzzle in world space when the caller knows it, so distant guns sound distant.
+export function gunSound(sfx, id, at) {
+  if (!sfx || sfx.live === false) return;
+  if (typeof sfx.gun === 'function') { sfx.gun(id, at); return; }
   if (!sfx.t || !sfx.n) { (id === 'homing' || id === 'swarm' ? sfx.rocket : sfx.laser)?.call(sfx); return; }
-  if (sfx.live === false) return;
   SOUNDS[id]?.(sfx);
 }

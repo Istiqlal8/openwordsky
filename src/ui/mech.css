@@ -59,3 +59,15 @@
   .mk-keys { display: none; }
   .mk-wp span { display: none; }
 }
+
+/* Free-look pad: hold and drag to swing the camera round the mech (the touch twin of Alt). */
+.mk-orbit {
+  position: absolute; right: 16px; bottom: 120px; z-index: 5;
+  width: 62px; height: 62px; border-radius: 50%;
+  background: rgba(10, 14, 22, 0.55); border: 1px solid var(--amber-dim); color: var(--amber-dim);
+  font: 700 9px/1 var(--display); letter-spacing: 0.1em;
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none;
+}
+.mk-orbit.is-hidden { display: none; }
+.mk-orbit.is-on { background: rgba(255, 179, 71, 0.22); color: var(--text); cursor: grabbing; }
+@media (max-width: 700px) { .mk-orbit { right: 10px; bottom: 170px; } }

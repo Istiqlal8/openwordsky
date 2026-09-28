@@ -22,6 +22,7 @@ export class MechPose {
     this.bob = 0;
     this.brace = 0;      // 0..1 wide firing stance
     this.crouch = 0;     // 0..1 hips dropped, knees flexed
+    this.hover = 0;      // clock for the idle and flight sway
     this.stride = (this.d.thighL + this.d.shinL) * 0.62;
     this.contact = [false, false];
     this.onStep = null;
@@ -43,8 +44,13 @@ export class MechPose {
     this.bob = this.move * strideNow * 0.05 * Math.cos(this.phase * Math.PI * 4) - dip;
     for (let i = 0; i < 2; i++) this.stepLeg(i, env, strideNow);
     this.armSwing(dt);
-    this.mech.torso.rotation.x = approach(this.mech.torso.rotation.x, this.move * (0.05 + this.run * 0.14), dt, 6);
-    this.mech.hips.position.y = this.d.hipY + this.bob;
+    this.hover += dt;
+    const still = (1 - this.move) * (1 - this.aimT);      // idle breathing, gone once it moves or aims
+    const sway = Math.sin(this.hover * 1.15) * still;
+    const lean = this.move * (0.05 + this.run * 0.14) + sway * 0.028;
+    this.mech.torso.rotation.x = approach(this.mech.torso.rotation.x, lean, dt, 6);
+    this.mech.torso.rotation.z = Math.sin(this.hover * 0.71) * 0.026 * still;
+    this.mech.hips.position.y = this.d.hipY + this.bob + sway * this.d.hipY * 0.008;
   }
 
   // One leg: stance sweeps the planted foot back, swing carries it forward with a lift.
@@ -80,7 +86,8 @@ export class MechPose {
 
   // Arms counter-swing with the legs; the gun arm swings less and yields to aiming.
   armSwing(dt) {
-    const s = Math.sin(this.phase * Math.PI * 2) * (0.35 + this.run * 0.35) * this.move;
+    const s = Math.sin(this.phase * Math.PI * 2) * (0.35 + this.run * 0.35) * this.move
+      + Math.sin(this.hover * 1.15) * 0.035 * (1 - this.move);
     for (let i = 0; i < 2; i++) {
       const arm = this.mech.arms[i], sign = i ? -1 : 1;
       const hold = i === 1 ? this.aim.aimT : Math.max(this.combo.drawT, this.aim.aimT * 0.6);
@@ -90,24 +97,49 @@ export class MechPose {
     }
   }
 
-  // Space: legs trail, torso leans into the thrust, arms held back.
-  fly(dt, thrust) {
+  // Flying. Hovering, the legs hang bent and sway; under power they trail out behind with the feet
+  // pointed like a diver's and the arms fold in against the body. `att` is the FlightAttitude that
+  // is also pitching the whole frame over — drive 0..1 is speed, boost 0..1 is the hard run.
+  fly(dt, thrust, att = null) {
     const d = this.d, spread = this.brace;
+    const drive = att ? att.drive : thrust, boost = att ? att.boost : 0;
     this.move = approach(this.move, 0, dt, 6);
+    this.hover += dt;
+    const idle = 1 - drive;
+    const sway = Math.sin(this.hover * 0.9), roll = Math.sin(this.hover * 1.31 + 1.1);
+    this.flyLegs(dt, drive, boost, spread, idle);
+    this.flyArms(dt, drive, boost, sway);
+    const t = this.mech.torso;
+    t.rotation.x = approach(t.rotation.x, 0.12 + drive * 0.34 + boost * 0.16 - this.crouch * 0.3 + sway * 0.03 * idle, dt, 4);
+    t.rotation.z = roll * 0.035 * idle * (1 - this.aimT);
+    if (this.aimT < 0.01) this.mech.head.rotation.x = approach(this.mech.head.rotation.x, -drive * 0.3, dt, 5);
+    this.mech.hips.position.y = approach(this.mech.hips.position.y,
+      d.hipY - this.crouch * d.hipY * 0.16 + sway * d.hipY * 0.012 * idle, dt, 6);
+  }
+
+  // Hover: knees up, ankles relaxed, a lazy alternating sway. Boost: legs straight out behind,
+  // toes pointed, dead still.
+  flyLegs(dt, drive, boost, spread, idle) {
     for (const leg of this.mech.legs) {
-      leg.group.rotation.x = approach(leg.group.rotation.x, -0.22 - thrust * 0.22 - spread * 0.3, dt, 5);
-      leg.group.rotation.z = approach(leg.group.rotation.z, leg.side * (0.07 + spread * 0.26), dt, 5);
-      leg.shin.rotation.x = approach(leg.shin.rotation.x, 0.3 + thrust * 0.3 + spread * 0.55, dt, 5);
-      leg.foot.rotation.x = approach(leg.foot.rotation.x, -0.5, dt, 5);
+      const beat = Math.sin(this.hover * 1.17 + (leg.side > 0 ? 0 : 1.7)) * 0.13 * idle;
+      const hip = -(0.30 + drive * 0.52 + boost * 0.26) - spread * 0.3 + beat;
+      const knee = 0.86 - drive * 0.46 - boost * 0.22 + spread * 0.55 - beat * 0.6;
+      leg.group.rotation.x = approach(leg.group.rotation.x, hip, dt, 5);
+      leg.group.rotation.z = approach(leg.group.rotation.z, leg.side * (0.07 * idle + spread * 0.26), dt, 5);
+      leg.shin.rotation.x = approach(leg.shin.rotation.x, knee, dt, 5);
+      leg.foot.rotation.x = approach(leg.foot.rotation.x, -(0.5 + drive * 0.5 + boost * 0.25), dt, 5);
     }
+  }
+
+  // Arms are free and a little out while hovering, folded in tight at speed; aiming always wins.
+  flyArms(dt, drive, boost, sway) {
     for (let i = 0; i < 2; i++) {
       const arm = this.mech.arms[i], hold = i ? this.aim.aimT : Math.max(this.combo.drawT, this.aim.aimT * 0.6);
-      arm.upper.rotation.x = approach(arm.upper.rotation.x, 0.35 * (1 - hold), dt, 6);
-      arm.upper.rotation.z = approach(arm.upper.rotation.z, -arm.side * 0.16 * (1 - hold), dt, 6);
-      arm.fore.rotation.x = approach(arm.fore.rotation.x, -0.5 * (1 - hold), dt, 6);
+      const free = 1 - hold, tuck = Math.min(1, drive + boost * 0.5);
+      arm.upper.rotation.x = approach(arm.upper.rotation.x, (0.18 + tuck * 0.2 + sway * 0.05 * (1 - tuck)) * free, dt, 6);
+      arm.upper.rotation.z = approach(arm.upper.rotation.z, -arm.side * (0.26 - tuck * 0.2) * free, dt, 6);
+      arm.fore.rotation.x = approach(arm.fore.rotation.x, (-0.5 - tuck * 0.75) * free, dt, 6);
     }
-    this.mech.torso.rotation.x = approach(this.mech.torso.rotation.x, thrust * 0.16 - this.crouch * 0.3, dt, 4);
-    this.mech.hips.position.y = approach(this.mech.hips.position.y, d.hipY - this.crouch * d.hipY * 0.16, dt, 6);
   }
 
   // Weapon layer; call after walk()/fly() so it wins. ctl comes from the gun controller.

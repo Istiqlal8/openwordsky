@@ -7,17 +7,17 @@ import { RocketPool } from '../combat/rockets.js';
 import { ShipBeam } from '../ship-systems/ship-beam.js';
 import { MechGuns } from './mech-gun-base.js';
 import { RIFLE, GATLING, BAZOOKA, CANNON, POD, SABER, modeById } from './mech-weapons.js';
-import { cannonSfx, saberHitSfx } from './mech-sfx.js';
+import { cannonSfx, saberHitSfx, bazookaHitSfx } from './mech-sfx.js';
 import { spend } from './mech-power.js';
 
 export const STOMP = { damage: 5, radius: 1.9 };
 const POD_MODE = modeById(POD);
 const SABER_MODE = modeById(SABER);
-const CENTER = new THREE.Vector2(0, 0);
 const _from = new THREE.Vector3();
 const _to = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _seg = new THREE.Vector3();
+const _back = new THREE.Vector3();
 
 export class MechSurfaceGuns extends MechGuns {
   constructor(ctx, mech) {
@@ -35,7 +35,9 @@ export class MechSurfaceGuns extends MechGuns {
   }
 
   aimHit(range, spread = 0) {
-    this.ray.setFromCamera(CENTER, this.ctx.surface.camera);
+    const cam = this.aimCamera ?? this.ctx.surface.camera;   // frozen chase basis, not the orbit view
+    this.ray.ray.origin.copy(cam.position);
+    this.ray.ray.direction.set(0, 0, -1).applyQuaternion(cam.quaternion);
     if (spread) {
       const d = this.ray.ray.direction;
       d.set(d.x + jitter(spread), d.y + jitter(spread), d.z + jitter(spread)).normalize();
@@ -55,7 +57,7 @@ export class MechSurfaceGuns extends MechGuns {
     this.firePod(pose);
     this.saber(pose);
     this.stepRockets(dt);
-    this.tick(dt);
+    this.tick(dt, pose);
   }
 
   fireMain(dt, pose) {
@@ -79,6 +81,7 @@ export class MechSurfaceGuns extends MechGuns {
     _dir.subVectors(hit.point, _from).normalize();
     fx?.beam(_from, hit.point, m.color, m.id === GATLING ? 0.05 : 0.08);
     fx?.sparks(hit.point, m.color, m.id === GATLING ? 5 : 10, this.unit * 0.09);
+    this.fx?.flash(hit.point, _back.copy(_dir).negate(), this.unit * m.flashSize * 0.6, m.flash, 0.09);
     this.fired(pose, m, _from, _dir, fx, 22);
     this.report(this.hits.apply(hit, g.damage, m.color));
   }
@@ -133,7 +136,7 @@ export class MechSurfaceGuns extends MechGuns {
 
   detonate = (r) => {
     this.ctx.fx?.explode(r.pos, { color: 0xffaa55, size: 1 + r.radius * 0.09, debris: true });
-    this.ctx.sfx?.explosion?.(Math.min(0.8, 0.3 + r.radius * 0.03));
+    bazookaHitSfx(this.sfx, Math.min(1, 0.45 + r.radius * 0.035));
     this.hits.splash(r.pos, r.radius, r.damage);
     this.onShake?.(Math.min(0.9, r.radius * 0.04));
     this.report('hit');

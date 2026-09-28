@@ -41,7 +41,7 @@ export const MODES = [
     charge: 1.1,
     space: { id: 'mechCannon', mode: 'beam', cost: 16, damage: 210, tick: 0.12, range: 340,
       width: 1.1, color: 0xb98cff, core: 0xffffff },
-    ground: { cost: 15, damage: 26, tick: 0.1, range: 260, width: 1.7, radius: 3.4,
+    ground: { cost: 15, damage: 26, tick: 0.1, range: 260, width: 3.0, radius: 3.4,
       color: 0xb98cff, core: 0xffffff },
   },
   {

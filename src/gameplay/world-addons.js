@@ -11,6 +11,7 @@ import { BaseSite } from '../build/build-world.js';
 import { LegendWorld } from '../legend/legend-world.js';
 import { RaidWorld } from '../raid/raid-world.js';
 import { MechWorld } from '../mech/mech-world.js';
+import { WaterWorld } from '../water/water-addon.js';
 export const WORLD_ADDONS = [
   RescueBeacons,
   GuideMarkers,
@@ -20,4 +21,5 @@ export const WORLD_ADDONS = [
   LegendWorld,
   RaidWorld,
   MechWorld,
+  WaterWorld,
 ];

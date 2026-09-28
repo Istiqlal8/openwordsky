@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { buildShip } from './ship-model.js';
 import { ShipDamage } from './ship-damage.js';
 import { BASE_SPEED, BOOST_SPEED } from './ship-flight.js';
+import { CameraOrbit, lookFreezer } from '../camera-orbit.js';
 
 const SCALE = 0.14;            // model meters -> space-view units (planets are 2.5..7 units)
 const CHASE_UP = 0.55;
@@ -12,7 +13,8 @@ const FOV_KICK = 14;
 const tmpV = new THREE.Vector3();
 const tmpQ = new THREE.Quaternion();
 const tmpE = new THREE.Euler();
-const PITCH_Q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), CHASE_PITCH);
+const AX = new THREE.Vector3(1, 0, 0);
+const CHASE = new THREE.Vector3(0, CHASE_UP, CHASE_BACK); // reused: z is refreshed from the speed
 
 export class ShipRig {
   constructor(camera) {
@@ -28,6 +30,8 @@ export class ShipRig {
     this.shakeAmt = 0;
     this.glow = 0;
     this.baseFov = camera.fov;
+    this.orbit = new CameraOrbit(); // hold Alt to swing the view around the ship
+    this.frozen = lookFreezer();
   }
 
   setDesign(design) {
@@ -72,15 +76,23 @@ export class ShipRig {
     this.updateFov(dt, speed);
   }
 
+  // Steering input for this frame: while the orbit is live it keeps the mouse, so the ship holds
+  // its own heading and the player can look at it head-on without losing control.
+  look(dt, input) {
+    if (!this.orbit.update(dt, input)) return input;
+    this.frozen.src = input;
+    return this.frozen;
+  }
+
   follow(dt, speed) {
     const cam = this.camera;
     if (this.mode === 'cockpit') {
-      cam.quaternion.copy(this.ship.quaternion);
+      this.orbit.orient(cam.quaternion, this.ship.quaternion);
       cam.position.copy(tmpV.set(0, 0.08, -0.25).applyQuaternion(this.ship.quaternion).add(this.ship.position));
     } else {
-      const back = CHASE_BACK + Math.min(1.2, speed / BOOST_SPEED * 1.2);
-      cam.quaternion.copy(this.camQ).multiply(PITCH_Q);
-      cam.position.copy(tmpV.set(0, CHASE_UP, back).applyQuaternion(this.camQ).add(this.ship.position));
+      CHASE.z = CHASE_BACK + Math.min(1.2, speed / BOOST_SPEED * 1.2);
+      this.orbit.apply(cam, this.ship.position, this.camQ, CHASE);
+      cam.quaternion.multiply(tmpQ.setFromAxisAngle(AX, CHASE_PITCH * (1 - this.orbit.t)));
     }
     this.applyShake(dt);
   }

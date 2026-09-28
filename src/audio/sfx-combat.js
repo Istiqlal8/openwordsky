@@ -1,86 +1,125 @@
-// Combat, loot and death one-shots, mixed into Sfx.prototype (uses this.t / this.n).
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
+// Impacts, explosions and the death / reward stings. Mixed into Sfx.prototype.
+// explosion(size) scales continuously from a rock cracking (0) to a capital ship going up (1):
+// the big end gets real low-end weight, a delayed second rumble and a long reverberant tail.
+import { layer, vary, clamp } from './dsp.js';
+import { place } from './voices.js';
+
+const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+// Scattered debris ticks after a big blast.
+function debris(k, P, s) {
+  const n = 3 + Math.round(s * 5);
+  for (let i = 0; i < n; i++) {
+    layer(k, { noise: 1, filter: 'highpass', ff0: 2200 + Math.random() * 2500, dur: 0.03,
+      gain: 0.05 * P.g * (1 - i / (n + 2)), attack: 0.001, delay: 0.08 + Math.random() * (0.6 + s * 0.9), lp: P.lp });
+  }
+}
+
+function boom(k, P, s) {
+  const p = vary(0.08);
+  const dur = 0.25 + s * 1.85;
+  const wet = P.wet + 0.2 + s * 0.35;
+  layer(k, { noise: 1, filter: 'highpass', ff0: 6000 * p, dur: 0.012, gain: (0.10 + s * 0.10) * P.g, attack: 0.001, lp: P.lp });
+  layer(k, { noise: 1, filter: 'lowpass', ff0: (4200 - 2200 * s) * p, ff1: 300 - 260 * s, dur,
+    gain: (0.28 + s * 0.34) * P.g, attack: 0.004, rate: 0.85 - s * 0.35, grit: s > 0.5 ? 1 : 0,
+    wet, lp: P.lp });
+  layer(k, { type: 'sine', f0: (150 - 95 * s) * p, f1: 30 - 14 * s, dur: 0.3 + s * 1.9,
+    gain: (0.3 + s * 0.5) * P.g, attack: 0.004, wet: wet * 0.6 });
+  if (s <= 0.45) {
+    layer(k, { type: 'triangle', f0: 320 * p, f1: 95, dur: 0.14, gain: 0.12 * P.g, attack: 0.002 });
+    return;
+  }
+  // Capital scale: a second sub layer, a delayed rumble and a long tail of falling debris.
+  layer(k, { type: 'sine', f0: 44 * p, f1: 17, dur: 1.2 + s * 1.6, gain: 0.35 * s * P.g, attack: 0.08, wet });
+  layer(k, { noise: 1, filter: 'lowpass', ff0: 500, ff1: 40, dur: 1.4 + s * 1.4, gain: 0.3 * s * P.g,
+    attack: 0.12, rate: 0.5, delay: 0.18 + s * 0.1, wet, echo: 0.25, lp: P.lp });
+  debris(k, P, s);
+}
 
 export const CombatSfx = {
-  // Short zappy pew.
-  laser() {
+  // size 0..1: 0 a rock cracking, ~0.6 a pirate dying, 1 a capital ship going up.
+  explosion(size = 0.5, at) {
     if (!this.live) return;
-    this.t({ type: 'square', f0: 1900, f1: 280, dur: 0.12, gain: 0.07, attack: 0.002 });
-    this.t({ type: 'sawtooth', f0: 3200, f1: 900, dur: 0.06, gain: 0.03, attack: 0.001 });
-    this.n({ filter: 'highpass', f0: 4000, dur: 0.04, gain: 0.05, attack: 0.001 });
+    const s = clamp(size, 0, 1);
+    const big = s > 0.55;
+    if (!this.voices.take(big ? 'boom' : 'pop', big ? 4 : 2, big ? 45 : 30, big ? 2600 : 700)) return;
+    boom(this.kit, place(this.kit, at), s);
   },
 
-  // Lower, harsher enemy fire.
-  enemyLaser() {
-    if (!this.live) return;
-    this.t({ type: 'sawtooth', f0: 760, f1: 110, dur: 0.2, gain: 0.08, attack: 0.002 });
-    this.t({ type: 'square', f0: 520, f1: 80, dur: 0.18, gain: 0.05, attack: 0.002, detune: 35 });
-    this.n({ filter: 'bandpass', f0: 1400, f1: 300, q: 3, dur: 0.12, gain: 0.08, attack: 0.002 });
+  // Hull hit: a dull metallic clank with a little weight behind it.
+  hit(at) {
+    if (!this.live || !this.voices.take('hit', 2, 20, 200)) return;
+    const k = this.kit, P = place(k, at), p = vary(0.14);
+    layer(k, { noise: 1, filter: 'highpass', ff0: 5500, dur: 0.012, gain: 0.07 * P.g, attack: 0.001, lp: P.lp });
+    layer(k, { type: 'sine', f0: 1700 * p, f1: 900, fm: 2500 * p, index: 600, indexDur: 0.04, dur: 0.07,
+      gain: 0.085 * P.g, attack: 0.001 });
+    layer(k, { type: 'triangle', f0: 2400 * p, f1: 1400, dur: 0.05, gain: 0.05 * P.g, attack: 0.001 });
+    layer(k, { type: 'sine', f0: 180, f1: 70, dur: 0.08, gain: 0.07 * P.g, attack: 0.002, wet: P.wet });
   },
 
-  // Whoosh launch.
-  rocket() {
-    if (!this.live) return;
-    this.n({ filter: 'bandpass', f0: 350, f1: 2600, q: 1.5, dur: 0.7, gain: 0.3, attack: 0.03, rate: 0.8 });
-    this.t({ type: 'sawtooth', f0: 80, f1: 240, dur: 0.5, gain: 0.05, attack: 0.02 });
-    this.n({ filter: 'lowpass', f0: 500, f1: 120, dur: 0.25, gain: 0.25, attack: 0.002 });
-  },
-
-  // Noise burst + low boom; size 0..1 scales length and volume.
-  explosion(size = 0.5) {
-    if (!this.live) return;
-    const s = clamp01(size);
-    const dur = 0.5 + s * 1.6;
-    this.n({ filter: 'lowpass', f0: 2600 + s * 2000, f1: 60, dur, gain: 0.25 + s * 0.35, attack: 0.004, rate: 0.7 });
-    this.t({ type: 'sine', f0: 90, f1: 24, dur: 0.4 + s * 0.9, gain: 0.35 + s * 0.45, attack: 0.004 });
-    this.n({ filter: 'highpass', f0: 2500, f1: 900, dur: 0.15 + s * 0.3, gain: 0.08 + s * 0.1, attack: 0.002 });
-  },
-
-  // Metallic tick.
-  hit() {
-    if (!this.live) return;
-    this.t({ type: 'triangle', f0: 2300, f1: 1500, dur: 0.06, gain: 0.08, attack: 0.001 });
-    this.t({ type: 'square', f0: 3700, dur: 0.03, gain: 0.025, attack: 0.001 });
-    this.n({ filter: 'highpass', f0: 5000, dur: 0.04, gain: 0.06, attack: 0.001 });
-  },
-
-  // Electric crackle.
-  shieldHit() {
-    if (!this.live) return;
-    this.n({ filter: 'bandpass', f0: 3200, f1: 1200, q: 8, dur: 0.18, gain: 0.18, attack: 0.002, rate: 2 });
-    this.t({ type: 'sawtooth', f0: 1300, f1: 380, dur: 0.16, gain: 0.04, attack: 0.002, detune: 20 });
+  // Shield hit: electric, ringing, nothing like the hull clank.
+  shieldHit(at) {
+    if (!this.live || !this.voices.take('shield', 2, 25, 300)) return;
+    const k = this.kit, P = place(k, at), p = vary(0.1);
+    layer(k, { noise: 1, filter: 'bandpass', ff0: 3400 * p, ff1: 1100, q: 9, dur: 0.2, gain: 0.2 * P.g,
+      attack: 0.002, rate: 2, wet: P.wet * 3, lp: P.lp });
+    layer(k, { type: 'sawtooth', f0: 1400 * p, f1: 400, detune: 20, dur: 0.17, gain: 0.05 * P.g,
+      attack: 0.002, grit: 1 });
+    layer(k, { type: 'sine', f0: 2600 * p, fm: 3900, index: 400, dur: 0.15, gain: 0.03 * P.g,
+      attack: 0.004, wet: P.wet * 3 });
     for (let i = 0; i < 3; i++) {
-      this.n({ filter: 'highpass', f0: 6000, dur: 0.02, gain: 0.07, attack: 0.001, delay: 0.03 + Math.random() * 0.12 });
+      layer(k, { noise: 1, filter: 'highpass', ff0: 7000, dur: 0.018, gain: 0.07 * P.g, attack: 0.001,
+        delay: 0.02 + Math.random() * 0.13, lp: P.lp });
     }
   },
 
-  // Bright blip.
-  pickup() {
+  // Confirmed kill: the blast plus a short falling sting so the payoff is unmistakable.
+  kill(size = 0.6, at) {
     if (!this.live) return;
-    this.t({ type: 'triangle', f0: 880, f1: 1760, dur: 0.12, gain: 0.1, attack: 0.004 });
-    this.t({ type: 'sine', f0: 1320, dur: 0.16, gain: 0.06, attack: 0.004, delay: 0.06 });
+    this.explosion(size, at);
+    if (!this.voices.take('kill', 3, 120, 900)) return;
+    const k = this.kit, P = place(k, at);
+    [88, 83].forEach((m, i) => {
+      layer(k, { type: 'triangle', f0: midiHz(m), dur: 0.22, gain: 0.07 * P.g, attack: 0.005,
+        delay: 0.06 + i * 0.1, wet: P.wet * 2.5 });
+      layer(k, { type: 'sine', f0: midiHz(m) * 2, dur: 0.14, gain: 0.022 * P.g, attack: 0.005, delay: 0.06 + i * 0.1 });
+    });
+    layer(k, { type: 'sine', f0: 140, f1: 55, dur: 0.35, gain: 0.16 * P.g, attack: 0.006, delay: 0.05 });
   },
 
-  // Dramatic descending fall.
+  // Bright pickup blip.
+  pickup(at) {
+    if (!this.live || !this.voices.take('pick', 2, 40, 300)) return;
+    const k = this.kit, P = place(k, at);
+    layer(k, { type: 'triangle', f0: 880, f1: 1760, dur: 0.12, gain: 0.1 * P.g, attack: 0.004 });
+    layer(k, { type: 'sine', f0: 1320, f1: 1980, dur: 0.16, gain: 0.05 * P.g, attack: 0.004, delay: 0.06, wet: P.wet * 2 });
+    layer(k, { noise: 1, filter: 'highpass', ff0: 6000, dur: 0.02, gain: 0.03 * P.g, attack: 0.001, lp: P.lp });
+  },
+
+  // The player's own ship breaking up: a long fall with the hull tearing underneath.
   death() {
     if (!this.live) return;
-    this.t({ type: 'sawtooth', f0: 420, f1: 38, dur: 2.4, gain: 0.08, attack: 0.02 });
-    this.t({ type: 'sine', f0: 120, f1: 28, dur: 2.2, gain: 0.5, attack: 0.01 });
-    this.n({ filter: 'lowpass', f0: 2200, f1: 70, dur: 2.6, gain: 0.3, attack: 0.01, rate: 0.6 });
+    const k = this.kit, P = place(k);
+    this.voices.take('death', 4, 0, 3000);
+    layer(k, { type: 'sawtooth', f0: 420, f1: 38, dur: 2.4, gain: 0.08, attack: 0.02, grit: 1 });
+    layer(k, { type: 'sine', f0: 120, f1: 24, dur: 2.4, gain: 0.5, attack: 0.01, wet: 0.5 });
+    layer(k, { type: 'sine', f0: 46, f1: 18, dur: 3.0, gain: 0.4, attack: 0.15, wet: 0.5 });
+    layer(k, { noise: 1, filter: 'lowpass', ff0: 2200, ff1: 60, dur: 2.8, gain: 0.3, attack: 0.01,
+      rate: 0.55, wet: 0.6, echo: 0.3, lp: P.lp });
     [67, 63, 60, 55].forEach((m, i) => {
-      const f = 440 * Math.pow(2, (m - 69) / 12);
-      this.t({ type: 'triangle', f0: f, f1: f * 0.97, dur: 0.9, gain: 0.09, delay: 0.3 + i * 0.35, attack: 0.02 });
+      layer(k, { type: 'triangle', f0: midiHz(m), f1: midiHz(m) * 0.97, dur: 0.9, gain: 0.09,
+        delay: 0.3 + i * 0.35, attack: 0.02, wet: 0.45 });
     });
   },
 
-  // Rising shimmer.
+  // Rising shimmer back into the world.
   respawn() {
     if (!this.live) return;
-    this.n({ filter: 'highpass', f0: 800, f1: 7000, q: 1, dur: 1.4, gain: 0.12, attack: 1.0 });
+    const k = this.kit;
+    layer(k, { noise: 1, filter: 'highpass', ff0: 800, ff1: 7000, dur: 1.4, gain: 0.12, attack: 1.0, wet: 0.4 });
     [60, 64, 67, 72, 76, 79, 84].forEach((m, i) => {
-      const f = 440 * Math.pow(2, (m - 69) / 12);
-      this.t({ type: 'triangle', f0: f, dur: 0.6, gain: 0.07, delay: i * 0.08, attack: 0.02 });
-      this.t({ type: 'sine', f0: f * 2, dur: 0.4, gain: 0.02, delay: i * 0.08 + 0.02, attack: 0.02 });
+      layer(k, { type: 'triangle', f0: midiHz(m), dur: 0.6, gain: 0.07, delay: i * 0.08, attack: 0.02, wet: 0.35 });
+      layer(k, { type: 'sine', f0: midiHz(m) * 2, dur: 0.4, gain: 0.02, delay: i * 0.08 + 0.02, attack: 0.02 });
     });
   },
 };

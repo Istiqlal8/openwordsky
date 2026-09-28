@@ -2,10 +2,11 @@
 // or charge), lock-on and the mech key hints. Only visible while the pilot is inside the mech.
 import { el, hexCss } from './dom.js';
 import { MODES } from '../mech/mech-weapons.js';
+import { orbitTouch } from '../mech/mech-orbit.js';
 
 const HINTS = [['Klik kiri', 'Tembak'], ['Klik kanan', 'Misil'], ['Klik tengah', 'Pedang'],
   ['Roda', 'Ganti senjata'], ['1–6', 'Pilih senjata'], ['Shift', 'Boost'],
-  ['Space', 'Lompat jet'], ['.', 'Kembali ke pesawat']];
+  ['Space', 'Lompat jet'], ['Alt', 'Putar kamera'], ['.', 'Kembali ke pesawat']];
 
 const GAUGE_CLASS = { heat: 'is-heat', ammo: 'is-ammo', charge: 'is-charge', combo: 'is-combo' };
 
@@ -23,6 +24,7 @@ export class MechHud {
     this.lock = el('div', 'mk-lock', 'TERKUNCI');
     this.root.append(this.lock, this.buildKeys());
     parent?.append(this.root);
+    this.orbit = this.buildOrbit(parent);
     this.last = { pct: -1, weapon: '', lock: null, name: '', mode: '', index: -1, gauge: '', bar: -1, text: '' };
   }
 
@@ -50,6 +52,31 @@ export class MechHud {
     return wrap;
   }
 
+  // Touch stand-in for holding Alt: drag on the pad to swing the camera around the mech.
+  buildOrbit(parent) {
+    const btn = el('button', 'mk-orbit is-hidden', 'PUTAR');
+    btn.type = 'button';
+    let id = null, x = 0, y = 0;
+    btn.addEventListener('pointerdown', (e) => {
+      id = e.pointerId; x = e.clientX; y = e.clientY;
+      orbitTouch.held = true;
+      btn.classList.add('is-on');
+      btn.setPointerCapture(id);
+      e.preventDefault();
+    });
+    btn.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== id) return;
+      orbitTouch.dx += (e.clientX - x) * 2.2;
+      orbitTouch.dy += (e.clientY - y) * 2.2;
+      x = e.clientX; y = e.clientY;
+    });
+    const end = () => { id = null; orbitTouch.held = false; btn.classList.remove('is-on'); };
+    btn.addEventListener('pointerup', end);
+    btn.addEventListener('pointercancel', end);
+    parent?.append(btn);
+    return btn;
+  }
+
   buildKeys() {
     const keys = el('div', 'mk-keys');
     for (const [k, label] of HINTS) {
@@ -63,7 +90,8 @@ export class MechHud {
   // state: { on, name, label, energy 0..1, weapon, lock, wp } — wp is Loadout.hud().
   update(state) {
     this.root.classList.toggle('is-hidden', !state.on);
-    if (!state.on) return;
+    this.orbit.classList.toggle('is-hidden', !state.on);
+    if (!state.on) { if (orbitTouch.held) { orbitTouch.held = false; this.orbit.classList.remove('is-on'); } return; }
     const pct = Math.round(state.energy * 100);
     if (pct !== this.last.pct) { this.fill.style.width = `${pct}%`; this.fill.dataset.low = pct < 20 ? '1' : '0'; }
     if (state.unlimited !== this.last.free) { this.fill.dataset.free = state.unlimited ? '1' : '0'; this.last.free = state.unlimited; }
@@ -98,6 +126,7 @@ export class MechHud {
 
   dispose() {
     this.root.remove();
+    this.orbit.remove();
   }
 }
 

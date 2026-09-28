@@ -87,7 +87,7 @@ export class Sentinels {
     if (!hit) to.add(_aim.randomDirection().multiplyScalar(1.5 + Math.random() * 2));
     fx?.beam(from, to, RED, 0.14);
     fx?.sparks(from, RED, 3);
-    sfx?.enemyLaser?.();
+    (sfx?.sentinelLaser ?? sfx?.enemyLaser)?.call(sfx, from);
     if (hit) player.damageSuit(5 + Math.floor(Math.random() * 4), 'Penjaga');
   }
 
@@ -109,7 +109,7 @@ export class Sentinels {
     if (!drone.hit()) return false;
     const { fx, sfx, player } = this.ctx;
     fx?.explode(drone.group.position, { color: 0xff7030, size: 2.2, debris: true });
-    sfx?.explosion?.(2);
+    (sfx?.kill ?? sfx?.explosion)?.call(sfx, 0.5, drone.group.position);
     player.addItem('Nanit', 8 + Math.floor(Math.random() * 10));
     player.addItem('Logam Penjaga', 1 + Math.floor(Math.random() * 2));
     player.emit('act', { type: 'sentinel' });

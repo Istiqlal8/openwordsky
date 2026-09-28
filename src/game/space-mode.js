@@ -30,7 +30,9 @@ export class SpaceMode {
     this.traffic = new SpaceTraffic(space);
     this.alienShips = new AlienShips(space);
     this.derelict = new Derelict(space, { player, onLoot: (text) => player.emit('notice', { text }) });
-    this.voidFauna = new VoidFauna(space, { player, onNotice: (text) => player.emit('notice', { text }) });
+    this.voidFauna = new VoidFauna(space, { player, sfx, fx: () => this.combat.fx,
+      onNotice: (text) => player.emit('notice', { text }), onImpact: () => sfx.hit?.() });
+    this.combat.onExtraHit = (bolt) => this.voidFauna.boltHit(bolt);
     this.lock = false;
     player.on('lockOn', ({ locked }) => { this.lock = locked; });
     // Stars scorch; a black hole's horizon is lethal within a second.

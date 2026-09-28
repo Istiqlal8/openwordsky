@@ -1,31 +1,20 @@
-// The hardware the mech's right hand carries: beam rifle, bazooka, gatling and particle cannon.
-// All four are built once and parented to the hand; only the selected one is visible. Every
-// weapon points down its local -Z, the same convention the rifle already used.
+// The hardware the mech's right hand carries: beam rifle, gatling and particle cannon. The
+// rockets fire from the shoulders instead (mech-shoulder-pods.js). All three are built once and
+// parented to the hand; only the selected one is visible, and every weapon points down its local
+// -Z, the same convention the rifle already used.
 import * as THREE from 'three';
 import { part } from '../view/ship/ship-materials.js';
 import { block, rod } from './mech-geo.js';
 import { buildRifle } from './mech-gear.js';
 import { RIFLE, BAZOOKA, GATLING, CANNON, POD, SABER } from './mech-weapons.js';
 
-const HELD = { [RIFLE]: RIFLE, [POD]: RIFLE, [SABER]: RIFLE, [BAZOOKA]: BAZOOKA, [GATLING]: GATLING, [CANNON]: CANNON };
+// The bazooka and the missile pod fire from the shoulder launchers (mech-shoulder-pods.js), so
+// the hand keeps the beam rifle as a sidearm for both.
+const HELD = { [RIFLE]: RIFLE, [POD]: RIFLE, [SABER]: RIFLE, [BAZOOKA]: RIFLE, [GATLING]: GATLING, [CANNON]: CANNON };
 
 function hotMaterial(color) {
   return new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false,
     blending: THREE.AdditiveBlending, toneMapped: false });
-}
-
-// Shoulder-fired tube: warhead nose, rear venturi that vents the backblast, top sight.
-function buildBazooka(d, mats, hot) {
-  const g = new THREE.Group(), L = d.upperL + d.foreL, r = d.armR * 0.95;
-  g.add(part(rod(r, L * 2.0, 12).rotateX(Math.PI / 2), mats.hull, 0, r * 0.7, -L * 0.25));
-  g.add(part(new THREE.CylinderGeometry(r * 1.45, r * 1.05, L * 0.3, 12, 1, true).rotateX(-Math.PI / 2), mats.dark, 0, r * 0.7, -L * 1.1));
-  g.add(part(new THREE.CylinderGeometry(r * 0.9, r * 1.5, L * 0.34, 12, 1, true).rotateX(-Math.PI / 2), mats.dark, 0, r * 0.7, L * 0.88));
-  g.add(part(block(r * 1.5, r * 0.9, L * 0.5, 0.85), mats.trim, 0, r * 1.9, -L * 0.1));   // sight rail
-  g.add(part(block(r * 1.2, r * 1.4, L * 0.3, 0.9), mats.dark, 0, -r * 0.5, L * 0.1));    // grip
-  for (const s of [-1, 1]) g.add(part(rod(r * 0.42, L * 0.9, 8).rotateX(Math.PI / 2), mats.trim, s * r * 1.15, r * 0.7, -L * 0.2));
-  const ring = part(new THREE.TorusGeometry(r * 1.25, r * 0.22, 6, 16).rotateX(Math.PI / 2), hot, 0, r * 0.7, -L * 1.22);
-  g.add(ring);
-  return { group: g, muzzle: new THREE.Vector3(0, r * 0.7, -L * 1.32), vent: new THREE.Vector3(0, r * 0.7, L * 1.05), hot: ring };
 }
 
 // Rotary cannon: six barrels in a spinner plus the ammo drum that feeds it.
@@ -76,26 +65,28 @@ function buildCannon(d, mats, hot, glow) {
 // Builds all four, parents them to `hand`, and returns the switcher the mech exposes.
 export function buildRack(m, mats, hand) {
   const d = m.d, hot = hotMaterial(0xffb060), glow = hotMaterial(0xc8a8ff);
+  const root = new THREE.Group();
+  hand.add(root);
   const items = {
     [RIFLE]: buildRifle(m, mats),
-    [BAZOOKA]: buildBazooka(d, mats, hot),
     [GATLING]: buildGatling(d, mats, hot),
     [CANNON]: buildCannon(d, mats, hot, glow),
   };
-  const offs = { [RIFLE]: -d.armR * 0.3, [BAZOOKA]: d.armR * 0.1, [GATLING]: 0, [CANNON]: 0 };
+  const offs = { [RIFLE]: -d.armR * 0.3, [GATLING]: 0, [CANNON]: 0 };
   for (const id in items) {
     const it = items[id];
     it.group.position.set(0, -d.handL * 0.9, offs[id]);
     it.group.visible = id === RIFLE;
-    hand.add(it.group);
+    root.add(it.group);
   }
-  return rackApi(items, { hot, glow });
+  return rackApi(items, { hot, glow }, root);
 }
 
-function rackApi(items, mats) {
+function rackApi(items, mats, root) {
   let held = RIFLE, spin = 0;
   const api = {
-    items, held: () => held,
+    items, root, held: () => held,
+    setVisible(on) { root.visible = on; },
     select(id) {
       const next = HELD[id] ?? RIFLE;
       if (next === held) return;

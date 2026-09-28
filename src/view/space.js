@@ -205,7 +205,7 @@ export class SpaceView {
     for (const b of this.bodies) b.update(this.time);
     this.satellites.update(this.time);
     if (carried) this.ship.position.add(tmpC.subVectors(carried.pos, tmpC));
-    const throttle = this.fly(dt, input);
+    const throttle = this.fly(dt, this.rig.look(dt, input)); // Alt-orbit keeps the mouse off the steering
     this.rig.update(dt, throttle, this.speed);
     this.bh?.update(dt, this.camera);
     this.starfield.position.copy(this.camera.position);

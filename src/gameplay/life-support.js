@@ -46,7 +46,8 @@ export class LifeSupport {
     this.tickStorm(dt);
     const stormMul = this.storm ? 2 : 1;
     // Breathable air doesn't help underwater (set each frame by surface-mode).
-    const life = this.air && !this.submerged ? LIFE_REGEN : -LIFE_DRAIN * upgradeMul(this.player, 'oxygen') * (this.submerged ? 3 : 1);
+    const under = this.submerged || this.headUnderWater;
+    const life = this.air && !under ? LIFE_REGEN : -LIFE_DRAIN * upgradeMul(this.player, 'oxygen') * (under ? 3 : 1);
     suit.lifeSupport = Math.min(100, Math.max(0, suit.lifeSupport + life * dt));
     const hz = this.factors ? -HAZARD_DRAIN * this.drainFactor() * stormMul * (this.shelter ?? 1) : HAZARD_REGEN;
     suit.hazard = Math.min(100, Math.max(0, suit.hazard + hz * dt));

@@ -5,7 +5,7 @@ const BUTTONS = [
   ['mouse0', 'Tembak', 'space surface'], ['mouse2', 'Roket', 'space surface'], ['Space', 'Lompat', 'surface'],
   ['ShiftLeft', 'Boost', 'space surface'], ['KeyE', 'E', 'space surface'], ['KeyF', 'Pindai', 'space surface'],
   ['KeyG', 'Isi', 'space surface'], ['KeyT', 'Aksi', 'surface'], ['KeyM', 'Peta', 'space'], ['KeyR', 'Naik', 'space'], ['KeyC', 'Turun', 'space'],
-  ['KeyV', 'Kamera', 'space surface'], ['KeyH', 'Hangar', 'space'], ['Tab', 'Tas', 'space surface'],
+  ['KeyV', 'Kamera', 'space surface'], ['AltLeft', 'Putar', 'space surface'], ['KeyH', 'Hangar', 'space'], ['Tab', 'Tas', 'space surface'],
   ['KeyQ', 'Ambil', 'surface'], ['KeyJ', 'Misi', 'space surface'], ['KeyU', 'Racik', 'space surface'],
   ['KeyL', 'Koleksi', 'space surface'],
   ['KeyY', 'Bangun', 'surface'],

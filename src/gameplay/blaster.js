@@ -35,7 +35,7 @@ export class Blaster {
     sfx?.laser?.();
     if (!drone && !creature) return 'miss';
     player.emit('hitMarker', {});
-    sfx?.hit?.();
+    sfx?.hit?.(this.point);
     if (creature) return creatures.damage(creature, this.point) ? 'creature-kill' : 'creature-hit';
     return sentinels.damage(drone, this.point) ? 'kill' : 'hit';
   }

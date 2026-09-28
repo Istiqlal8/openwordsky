@@ -3,6 +3,8 @@ import { makeNoiseBuffer, tone, noiseBurst, noiseLoop } from './synth.js';
 import { buildPlanetAmbient, buildSpaceAmbient } from './ambient.js';
 import { CombatSfx } from './sfx-combat.js';
 import { LoopSfx } from './sfx-loops.js';
+import { GunSfx } from './sfx-guns.js';
+import { makeKit } from './voices.js';
 
 const MASTER = 0.55;
 const AMBIENT = 0.45;
@@ -14,17 +16,19 @@ export class Sfx {
     this.muted = false;
     this.engine = null;
     this.scene = null;
+    this.kit = null;
     this.wantAmbient = undefined; // last setAmbient() request, replayed on unlock
   }
 
-  unlock() {
+  // `offline` lets a test render the whole graph into an OfflineAudioContext.
+  unlock(offline = null) {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') this.ctx.resume();
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
+    if (!offline && !AC) return;
+    const ctx = offline || new AC();
     this.ctx = ctx;
     this.noise = makeNoiseBuffer(ctx, 2);
     const comp = ctx.createDynamicsCompressor();
@@ -41,14 +45,27 @@ export class Sfx {
     this.ambientBus = ctx.createGain();
     this.ambientBus.gain.value = AMBIENT;
     this.ambientBus.connect(this.master);
+    this.kit = makeKit(ctx, this.noise, this.fx);
     if (this.wantAmbient !== undefined) this.setAmbient(this.wantAmbient);
   }
 
-  // Stop every continuous sound (engine, alarm, mining beam), e.g. on pause.
+  // Voice budget for combat one-shots; a silent stub before the context exists.
+  get voices() { return this.kit?.voices ?? NO_VOICES; }
+
+  // Where the player is hearing from: combat sounds carrying a world position are placed against it.
+  // `ref` is the distance (in that view's units) at which a sound is still about half as loud.
+  listen(camera, ref = 80) {
+    if (!this.kit) return;
+    this.kit.listener = camera;
+    this.kit.ref = ref;
+  }
+
+  // Stop every continuous sound (engine, alarm, mining beam, weapon beam), e.g. on pause.
   silenceLoops() {
     this.setEngine(0);
     this.alarm?.(false);
     this.mineBeam?.(false);
+    this.stopGunBeam?.();
   }
 
   setMuted(muted) {
@@ -99,6 +116,8 @@ export class Sfx {
 
   setAmbient(planet) {
     this.wantAmbient = planet || null;
+    // Thin air carries less sound; vacuum in space keeps the cinematic mix.
+    if (this.kit) this.kit.air = planet ? Math.min(1, 0.25 + (planet.atmosphereDensity ?? 1) * 1.5) : 1;
     if (!this.ctx) return;
     const next = planet
       ? buildPlanetAmbient(this.ctx, this.noise, this.ambientBus, planet)
@@ -166,5 +185,8 @@ export class Sfx {
   }
 }
 
-// Combat/loot one-shots and toggled loops live in their own modules.
-Object.assign(Sfx.prototype, CombatSfx, LoopSfx);
+// A stub voice budget so combat calls before unlock() are simply refused.
+const NO_VOICES = { take: () => false, reset() {} };
+
+// Weapon fire, impacts and toggled loops live in their own modules.
+Object.assign(Sfx.prototype, CombatSfx, LoopSfx, GunSfx);

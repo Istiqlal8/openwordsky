@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { Loadout } from './mech-loadout.js';
 import { MuzzleFx } from './mech-muzzle.js';
 import { SABER, GATLING, CANNON, BAZOOKA } from './mech-weapons.js';
-import { weaponSfx, swapSfx, spinUpSfx, chargeSfx, overheatSfx, ignightSfx, saberSfx } from './mech-sfx.js';
+import { weaponSfx, swapSfx, spinUpSfx, spinDownSfx, chargeSfx, cannonEndSfx, overheatSfx,
+  ignightSfx, saberSfx, brapLoop, roarLoop, humLoop, stopMechLoops } from './mech-sfx.js';
 
 const _v = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -23,6 +24,8 @@ export class MechGuns {
     this.fx = null;
     this.spinCue = false;
     this.chargeCue = false;
+    this.beamCue = false;
+    this.beamNow = false;
     this.onShake = null;
     this.onFov = null;
   }
@@ -56,18 +59,30 @@ export class MechGuns {
     return this.fireHeld;
   }
 
-  // Cues that depend only on the loadout state, not on the world.
-  cues(dt) {
+  // Cues that depend only on the loadout state, not on the world — including the three sounds
+  // that run continuously while a trigger is held.
+  cues(dt, pose) {
     const m = this.load.mode;
     this.mech.rack.spinBarrels(dt, this.load.spin);
+    this.mech.stepPods?.(dt);
     if (m.id === CANNON) this.mech.rack.setCharge(this.load.charge);
     else this.mech.rack.setHeat(this.load.st.heat);
     const spinning = m.id === GATLING && this.load.spin > 0.02;
-    if (spinning && !this.spinCue) spinUpSfx(this.sfx);
+    if (spinning !== this.spinCue) (spinning ? spinUpSfx : spinDownSfx)(this.sfx);
     this.spinCue = spinning;
     const charging = m.id === CANNON && this.load.charge > 0.02 && this.load.charge < 1;
     if (charging && !this.chargeCue) chargeSfx(this.sfx, m.charge);
     this.chargeCue = charging;
+    this.loops(m, pose);
+  }
+
+  loops(m, pose) {
+    brapLoop(this.sfx, m.id === GATLING && this.fireHeld && this.load.spin > 0.5 && !this.load.st.locked);
+    if (this.beamCue && !this.beamNow) cannonEndSfx(this.sfx);
+    this.beamCue = this.beamNow;
+    this.beamNow = false;
+    roarLoop(this.sfx, this.beamCue);
+    humLoop(this.sfx, (pose?.combo.lit ?? 0) > 0.5);
   }
 
   // One shot left the barrel: flash, smoke, casing, backblast, recoil and camera kick.
@@ -82,6 +97,7 @@ export class MechGuns {
     this.onShake?.(mode.cam.shake);
     this.onFov?.(mode.cam.fov);
     weaponSfx(this.sfx, mode.id);
+    if (mode.id === BAZOOKA) this.mech.nextTube?.();   // launches alternate shoulders
     if (this.load.spend(mode.id)) overheatSfx(this.sfx);
   }
 
@@ -101,6 +117,7 @@ export class MechGuns {
   // Beam weapons report per frame instead of per shot.
   sustained(dt, pose, mode) {
     pose && (pose.aimT = 1);
+    this.beamNow = true;
     this.onShake?.(mode.cam.shake * dt);
     this.onFov?.(mode.cam.fov * Math.min(1, dt * 8));
     if (this.load.sustain(dt)) overheatSfx(this.sfx);
@@ -131,12 +148,13 @@ export class MechGuns {
 
   hud() { return this.load.hud(this.hudState); }
 
-  tick(dt) {
-    this.cues(dt);
+  tick(dt, pose) {
+    this.cues(dt, pose);
     this.fx?.update(dt);
   }
 
   dispose() {
+    stopMechLoops(this.sfx);
     this.load.dispose();
     this.fx?.dispose();
     this.fx = null;

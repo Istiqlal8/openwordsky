@@ -47,7 +47,10 @@ const SOUNDS = {
 };
 
 // Plays the named sound if audio is unlocked; silently ignores unknown names / missing audio.
+// Prefers the layered synthesis in src/audio/sfx-guns.js, falling back to the sounds above.
 export function playWeaponSfx(sfx, name, arg) {
-  if (!sfx?.live || typeof sfx.t !== 'function') return;
+  if (!sfx?.live) return;
+  if (typeof sfx.hand === 'function') { sfx.hand(name, arg); return; }
+  if (typeof sfx.t !== 'function') return;
   SOUNDS[name]?.(sfx, arg);
 }

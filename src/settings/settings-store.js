@@ -16,7 +16,8 @@ export const ACTIONS = [
 // Keys the game uses for fixed controls; an action can never be moved onto one of these.
 const FIXED = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyR', 'KeyC', 'KeyV', 'KeyH', 'KeyB', 'KeyI', 'KeyZ',
   'KeyX', 'KeyP', 'Space', 'Tab', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'Escape', 'Enter',
-  'NumpadEnter', 'Backspace', 'Backquote', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight'];
+  'NumpadEnter', 'Backspace', 'Backquote', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'MetaLeft', 'MetaRight',
+  'AltLeft', 'AltRight'];
 
 function read() {
   try {
