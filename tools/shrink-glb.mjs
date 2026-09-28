@@ -5,7 +5,14 @@
 //   node tools/shrink-glb.mjs assets/models/gundam-rigged.glb assets/models/mech-gundam.glb
 //
 // The Gundam went 10.16 MB -> 1.74 MB this way: 4k normal/colour/ORM maps down to 1k/1k/512 JPEG.
-// Mesh compression is deliberately skipped — no Draco or meshopt decoder is vendored.
+// Mesh compression is deliberately skipped — no Draco or meshopt decoder is vendored. Triangle
+// counts are cut instead, with gltf-transform, before this script runs. ship-crimson.glb came off
+// a 53 MB / 1.04 M-tri Meshy export that way, at 26 k tris and 1.55 MB:
+//
+//   npx @gltf-transform/cli weld in.glb a.glb
+//   npx @gltf-transform/cli simplify a.glb b.glb --ratio 0.025 --error 0.002
+//   npx @gltf-transform/cli resize b.glb c.glb --width 1024 --height 1024
+//   npx @gltf-transform/cli prune c.glb d.glb && npx @gltf-transform/cli dedup d.glb out.glb
 import fs from 'node:fs';
 import sharp from 'sharp';
 
