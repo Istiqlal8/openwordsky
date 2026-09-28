@@ -95,12 +95,27 @@ export class BoneAnimator {
 
   // Whale: vertical fluke undulation growing toward the tail, flippers rowing gently.
   swim() {
+    if (this.profile.arms?.length) return this.tentacles();
     const tail = this.profile.tail;
     tail.forEach((b, i) => {
       const k = (i + 1) / tail.length;
       this.add(b, 'z', Math.sin(this.time * 1.4 - i * 0.8) * 0.2 * k + STRAIGHTEN * k);
     });
     for (const w of this.profile.wings) this.add(w.bones[0], 'x', -w.side * (FLIPPERS_OUT + Math.sin(this.time * 0.9) * 0.15));
+  }
+
+  // Tentacles: a wave travels down each arm, and the arms are out of step with one another so the
+  // animal looks like it is swimming rather than pulsing all its limbs at once.
+  tentacles() {
+    this.profile.arms.forEach((arm, i) => {
+      const t = this.time * 0.9 + i * 1.7;
+      const n = arm.bones.length;
+      arm.bones.forEach((b, k) => {
+        const grow = (k + 1) / n;                 // the base barely moves, the tip curls
+        this.add(b, 'y', Math.sin(t - k * 0.55) * 0.16 * grow);
+        this.add(b, 'z', Math.cos(t * 0.7 - k * 0.4) * 0.11 * grow);
+      });
+    });
   }
 
   apply() {

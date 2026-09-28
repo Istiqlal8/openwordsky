@@ -24,7 +24,7 @@ const RAW = {
   sandworm: { yaw: 0, rig: null }, // rig null: the coiled pose has no skeleton, so it is posed as one mesh
   // Void fauna: drifting space creatures. They never stand, so none of them use a leg rig.
   devourer: { yaw: 0, rig: null }, voidwhale: { yaw: 90, pitch: 13, rig: 'whale' },
-  kraken: { yaw: 0, rig: 'whale' }, hivequeen: { yaw: 0, rig: 'whale' },
+  kraken: { yaw: 0, rig: 'tentacle' }, hivequeen: { yaw: 0, rig: 'whale' },
   guardian: { yaw: 0, rig: 'whale' }, starleech: { yaw: 56, rig: 'whale' },
 };
 

@@ -140,9 +140,36 @@ function tailLike(leaf, pos) {
 
 function capped(chain) { return chain.slice(-MAX_CHAIN); }
 
+// Every leaf chain hanging off the body, uncapped. A kraken is nothing but arms: classifying two of
+// them as flippers and one as a tail leaves the other six locked solid, which is what this avoids.
+function findArms(info, stop) {
+  const arms = [], used = new Set();
+  for (const leaf of info.leaves) {
+    const chain = pathUp(leaf, stop).filter((b) => !used.has(b));
+    if (chain.length < 3) continue;
+    chain.forEach((b) => used.add(b));
+    const at = info.pos.get(leaf);
+    arms.push({ bones: chain, side: Math.sign(at.z) || 1 });
+  }
+  return arms;
+}
+
+// Tentacled swimmers: the root is the mantle and everything below it is an arm. No legs to find,
+// no head to pick out — the rigger's own hierarchy already says which bones belong to which arm.
+function tentacleProfile(rig, info) {
+  const body = info.bones[0];
+  const arms = findArms(info, new Set([body]));
+  return {
+    rig, body: body.name, tail: [], neck: [], spine: [], legs: [], wings: [],
+    arms: arms.map((a) => ({ bones: a.bones.map((b) => b.name), side: a.side })),
+    axes: boneAxes([...arms.flatMap((a) => a.bones), body]),
+  };
+}
+
 export function buildRigProfile(root, rig, mesh) {
   root.updateMatrixWorld(true);
   const info = collect(root);
+  if (rig === 'tentacle') return tentacleProfile(rig, info);
   const rearmost = extremeLeaf(info.leaves, info.pos, (p) => -p.x, new Set());
   const legs = rig === 'whale' ? [] : findLegs(mesh, info.pos, tailLike(rearmost, info.pos) ? rearmost : null);
   const body = commonAncestor(legs.map((l) => l.hip), info.bones[0]);
@@ -162,7 +189,7 @@ export function buildRigProfile(root, rig, mesh) {
   const all = [...legs.flatMap((l) => l.bones), ...tail, ...neck, ...spine, ...wings.flatMap((w) => w.bones), body];
   const names = (list) => list.map((b) => b.name);
   return {
-    rig, body: body.name, tail: names(tail), neck: names(neck), spine: names(spine),
+    rig, body: body.name, tail: names(tail), neck: names(neck), spine: names(spine), arms: [],
     legs: legs.map((l) => ({ bones: names(l.bones), hip: l.hip.name, knee: l.knee?.name ?? null, side: l.side, front: l.front })),
     wings: wings.map((w) => ({ bones: names(w.bones), side: w.side })),
     axes: boneAxes(all),
