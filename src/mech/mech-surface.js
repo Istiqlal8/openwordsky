@@ -238,8 +238,7 @@ export class MechSurface {
     this.dropJets = Math.max(0, this.dropJets - dt);
     this.crouchT = Math.max(0, this.crouchT - dt * 2.1);
     this.pose.crouch = Math.min(1.2, this.pose.crouch + this.crouchT * 0.8);
-    const jet = this.jets || this.dropJets > 0;
-    this.mech.setThrust(jet ? 1 : Math.max(this.att.flare * this.att.air, this.env.speed / RUN * 0.5), this.att.boost);
+    this.mech.setThrust(this.jets || this.dropJets > 0 ? 1 : Math.max(this.att.flare * this.att.air, this.env.speed / RUN * 0.5), this.att.boost);
     this.mech.pack.group.rotation.x = this.att.nozzle;
   }
 
