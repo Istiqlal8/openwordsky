@@ -35,7 +35,7 @@ export class FlightAttitude {
   get nozzle() { return -this.pitch * 0.6; }
   get streak() { return this.drive * this.drive * this.air; }
   // How far the wing binders throw open: wide in a hard lateral break, tucked cruising straight.
-  get splay() { return Math.min(1, Math.abs(this.lat) * 1.35 + this.boost * 0.25) * this.air; }
+  get splay() { return Math.min(1, Math.abs(this.lat) * 1.35 + this.boost * 0.25); }
 
   // f: { fwd, side, climb, cap, boost, turn, air } — fwd/side/climb are world units per second,
   // `turn` is the frame's yaw rate in rad/s and `air` is false the moment the feet are down.
@@ -43,13 +43,13 @@ export class FlightAttitude {
     this.t += dt;
     const cap = Math.max(1, f.cap);
     const run = clamp(f.fwd / cap, -1, 1);
-    const side = clamp(f.side / cap, -1, 1);
+    const side = clamp(f.side / (cap * 0.45), -1, 1);   // a cruise-speed strafe is already a hard break
     const rise = clamp(f.climb / (cap * 0.7), -1, 1);
     this.air = approach(this.air, f.air ? 1 : 0, dt, 7);
     const push = Math.min(1, Math.hypot(run, side));        // speed in any direction, not just ahead
     this.drive = approach(this.drive, push, dt, 3.2);
     this.run = approach(this.run, run, dt, 3.2);             // signed, forward only: the nose-down lean
-    this.lat = approach(this.lat, side * this.air, dt, 4);   // signed strafe: drives the broken stance
+    this.lat = approach(this.lat, side, dt, 6);   // signed strafe: drives the broken stance
     const on = f.boost ? 1 : 0;
     if (on && !this.wasBoost) this.pop = 1;
     this.wasBoost = on;

@@ -14,7 +14,7 @@ function headingOf(obj) {
 
 const dist = (d) => `${Math.round(Math.max(0, d)).toLocaleString('id-ID')} u`;
 
-export function spaceFeed(space, combat, target, npcs = []) {
+export function spaceFeed(space, combat, target, npcs = [], beast = null) {
   const ship = space.shipObject.position, star = space.system.star;
   const bodies = space.bodies.map((b) => ({ x: b.pos.x, z: b.pos.z, r: b.radius, color: b.planet.palette.ground1,
     name: b.planet.name, orbit: b.planet.orbit.radius, current: target?.planet === b.planet }));
@@ -28,6 +28,9 @@ export function spaceFeed(space, combat, target, npcs = []) {
   for (const n of npcs.slice(0, 4)) {
     markers.push({ id: `n${n.id}`, position: n.position, label: n.name, sub: dist(n.position.distanceTo(ship)), color: 0x9fe8ff, kind: 'ship' });
   }
+  // Void fauna dwarfs the planets, so it gets its own marker rather than hiding among the ships.
+  if (beast) markers.push({ id: 'void', position: beast.position, label: beast.name,
+    sub: dist(beast.distance), color: 0xff8a50, kind: 'ship' });
   for (const p of pirates.slice(0, MAX_HOSTILE_MARKERS)) {
     markers.push({ id: `h${pirates.indexOf(p)}`, position: p.group.position, kind: 'hostile' });
   }

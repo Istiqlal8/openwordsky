@@ -17,6 +17,14 @@ const HOLD = {
   charge: [1.42, -1.42, 0.40, 1.42, -1.42, -0.46, 0.0, 1.0, 0.40, 0.25],
 };
 const SUPPORT = { shoulder: 1, braced: 1, charge: 1 };
+// Body-vs-crosshair tracking. The head and the wrist follow the aim closely; the torso only leans
+// after it, heavily damped, so sweeping the mouse does not swing the whole frame around.
+const ERR_DEAD = 0.13;       // rad of cursor travel the torso simply ignores
+const ERR_GAIN = 0.16;       // ...and how little of the rest it takes
+const TWIST_MAX = 0.4;
+const TWIST_RATE = 3.2;      // slow: the torso lags a sustained turn instead of snapping to it
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const dead = (v, d) => (v > d ? v - d : v < -d ? v + d : 0);
 const approach = (a, b, dt, k) => a + (b - a) * (1 - Math.exp(-k * dt));
 
 export class MechAim {
@@ -30,6 +38,8 @@ export class MechAim {
     this.prev = HOLD.rifle;
     this.cur = HOLD.rifle;
     this.twist = 0;
+    this.base = 0;     // the damped, aim-driven part of the twist
+    this.err = 0;      // smoothed crosshair offset, for the head and the wrist
     this.blend = HOLD.rifle.slice();
   }
 
@@ -71,12 +81,14 @@ export class MechAim {
   // keeps the barrel on the aim line while the body stays angled and readable.
   twistTick(dt, ctl, pose) {
     const yaw = ctl.bodyYaw ?? 0;
-    const want = this.blend[6] * this.aimT - (ctl.yawErr ?? 0) * 0.55 - yaw * 0.3 - this.r * 0.3
-      + (pose?.lean ?? 0);   // the flight pose twists the shoulders into a lateral break
-    this.twist = approach(this.twist, want, dt, 9);
+    this.err = approach(this.err, ctl.yawErr ?? 0, dt, 13);
+    const want = this.blend[6] * this.aimT - dead(this.err, ERR_DEAD) * ERR_GAIN - yaw * 0.3;
+    this.base = approach(this.base, clamp(want, -TWIST_MAX, TWIST_MAX), dt, TWIST_RATE);
+    // Recoil and the flight pose's lateral break are deliberate motion: neither is damped.
+    this.twist = this.base - this.r * 0.3 + (pose?.lean ?? 0);
     this.mech.torso.rotation.y = this.twist;
-    this.mech.head.rotation.y = -(this.twist + yaw) * 0.75;
-    this.lead = -(this.twist + yaw);
+    this.mech.head.rotation.y = clamp(-(this.twist + yaw) * 0.75 + this.err * 0.8, -1.05, 1.05);
+    this.lead = clamp(-(this.twist + yaw) + this.err, -0.85, 0.85);
     this.mech.arms[1].hand.rotation.y = this.lead * this.aimT;
   }
 
@@ -107,6 +119,8 @@ export class MechAim {
   // Called when the saber takes over the torso, so the twist does not fight the swing.
   release() {
     this.twist = 0;
+    this.base = 0;
+    this.err = 0;
     this.aimT = 0;
     this.r = 0;
     this.rv = 0;

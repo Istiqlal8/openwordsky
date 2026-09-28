@@ -6,7 +6,7 @@ import { MechPose } from './mech-pose.js';
 import { Transform } from './mech-transform.js';
 import { MechSurfaceGuns } from './mech-surface-guns.js';
 import { transformSfx, stompSfx } from './mech-sfx.js';
-import { stopFlight, launchShip, parkShip, shadowView } from './mech-handover.js';
+import { stopFlight, launchShip, parkShip, shadowView, FLIGHT_CHASE_UP, BOARD_LIFT } from './mech-handover.js';
 import { MorphFx } from './mech-morph-fx.js';
 import { MechCamera } from './mech-camera.js';
 import { FlightAttitude } from './mech-flight.js';
@@ -34,7 +34,8 @@ export class MechSurface {
     this.att = new FlightAttitude();
     this.fwd = 0;
     this.side = 0;
-    this.env = { speed: 0, runSpeed: RUN, airborne: false, root: this.pos, cos: 1, sin: 0, groundAt: null };
+    this.env = { speed: 0, runSpeed: RUN, airborne: false, root: this.pos, cos: 1, sin: 0,
+      groundAt: null, fwd: 1, side: 0 };
   }
 
   get busy() { return this.tr.busy; }
@@ -57,6 +58,7 @@ export class MechSurface {
     this.pose.onStep = (i) => this.footfall(i);
     this.guns = new MechSurfaceGuns(ctx, mech);
     this.guns.aimCamera = this.cam.aim;    // the crosshair ignores the free-look orbit
+    mech.att = this.att;                   // inspectable through window.__mech
     this.guns.onShake = (a) => { this.shake = Math.min(1.6, this.shake + a); };
     this.guns.onFov = (a) => { this.fovKick = Math.min(11, this.fovKick + a); };
     this.fovKick = 0;
@@ -115,11 +117,16 @@ export class MechSurface {
     this.tr.finish(false);
   }
 
-  // High enough and the ship comes back flying; otherwise it parks where the mech stands.
+  // Off the ground at all and the ship comes back flying, placed so the camera does not drop;
+  // only a mech actually standing on its feet parks the ship and puts the pilot back on foot.
   handOver(s) {
-    const h = this.mech.design.d.H;
-    if (this.pos.y > s.floorAt(this.pos.x, this.pos.z) + h * 0.4) launchShip(s, this.pos, this.heading, h * 0.45);
-    else parkShip(s, this.pos, this.heading);
+    const d = this.mech.design.d;
+    if (this.pos.y <= s.floorAt(this.pos.x, this.pos.z) + d.footH * 1.5) {
+      parkShip(s, this.pos, this.heading);
+      return;
+    }
+    const lift = d.H * 0.88 - FLIGHT_CHASE_UP - BOARD_LIFT;   // shoulder camera height, kept
+    launchShip(s, this.pos, this.heading, lift, this.env.speed);
   }
 
   shadow(on) {
@@ -185,7 +192,9 @@ export class MechSurface {
     this.pos.x += (-sin * f + cos * r) * speed * dt;
     this.pos.z += (-cos * f - sin * r) * speed * dt;
     this.env.speed = len > 0 ? speed : 0;
-    this.fwd = f * speed;          // signed, in the frame's own axes: what the attitude leans into
+    this.env.fwd = len > 0 ? f : 1;   // unit movement direction in the mech's own frame
+    this.env.side = len > 0 ? r : 0;
+    this.fwd = f * speed;             // signed, in the frame's own axes: what the attitude leans into
     this.side = r * speed;
     this.gravity(dt, input, s);
     this.heading = turnToward(this.heading, s.yaw, dt * TURN);

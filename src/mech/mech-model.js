@@ -164,8 +164,21 @@ function setSheath(mech, saber, mount, on) {
 }
 
 // deploy 1 = standing mech, 0 = folded transport block roughly the size of the ship.
+//
+// Once the frame is fully unfolded this stops writing joints: mech-pose.js owns them from there.
+// Re-applying the t = 1 fold every frame used to reset every limb to zero just before the pose
+// sprang toward its target, so the walk and the flight pose only ever reached a tenth of it.
 function setDeploy(mech, t) {
+  const settled = mech.deploy === t && t >= 1;
   mech.deploy = t;
+  mech.saber.group.visible = t > 0.6;
+  mech.rack.setVisible(t > 0.5);
+  mech.pods.setVisible(t > 0.5);
+  if (settled) return;
+  fold(mech, t);
+}
+
+function fold(mech, t) {
   const u = 1 - t, b = mech.base;
   for (const leg of mech.legs) {
     leg.group.rotation.x = u * 1.95;
@@ -188,9 +201,6 @@ function setDeploy(mech, t) {
   mech.torso.rotation.set(u * 0.32, -u * 0.7, u * 0.3);
   mech.hips.position.y = lerp(b.hipY * 0.62, b.hipY, t);
   for (const pivot of mech.pack.binders) pivot.rotation.x = -u * 1.35;
-  mech.saber.group.visible = t > 0.6;
-  mech.rack.setVisible(t > 0.5);
-  mech.pods.setVisible(t > 0.5);
 }
 
 // Height of the folded silhouette, used to line the transform up with the ship model.

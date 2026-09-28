@@ -45,6 +45,7 @@ export class MechSpace {
     this.pose = new MechPose(mech);
     this.guns = new MechSpaceGuns(this.space, this.player, this.sfx, mech);
     this.guns.aimCamera = this.cam.aim;     // the crosshair ignores the free-look orbit
+    mech.att = this.att;                   // inspectable through window.__mech
     this.guns.attach(combat);
     const rig = this.space.rig;
     this.shipScale = rig.model?.group.scale.x ?? 1; // the rig scales the model; restore it exactly

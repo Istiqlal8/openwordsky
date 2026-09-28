@@ -29,7 +29,7 @@ export class FrameLoop {
     hud.setSpeed(space.speed);
     vitals.update(player, { hostiles: s.hostiles, lock: s.lock, boostAllowed: s.boostAllowed });
     const home = freighter.dock ? [{ id: 'kapal-induk', name: freighter.nearest(pos)?.name ?? 'Kapal Induk', position: freighter.dock.position }] : [];
-    this.game.feed = spaceFeed(space, spaceMode.combat, s.target, [...home, ...spaceMode.alienShips.list(), ...spaceMode.traffic.list()]);
+    this.game.feed = spaceFeed(space, spaceMode.combat, s.target, [...home, ...spaceMode.alienShips.list(), ...spaceMode.traffic.list()], s.beast);
     this.announce('hail', s.npcShip ? `Kapal lewat: ${s.npcShip.name} · ${s.npcShip.captain}` : null);
     if (!player.dead) this.spaceKeys(s);
   }

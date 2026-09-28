@@ -94,6 +94,7 @@ export class SpaceMode {
       target, looked: this.space.lookedPlanet(), landOn: alive ? this.autoLand(target) : null,
       hostiles: this.combat.hostiles, lock: this.lock, boostAllowed: this.combat.boostAllowed,
       pulse: this.space.pulsing, npcShip: this.traffic.nearest(this.space.ship.position, 300),
+      beast: this.voidFauna.nearest(this.space.shipObject.position),
     };
   }
 

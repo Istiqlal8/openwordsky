@@ -6,7 +6,9 @@ import { MechAim } from './mech-aim.js';
 import { SaberCombo } from './mech-saber.js';
 
 const BETA = 0.62;                   // fraction of the cycle a foot spends on the ground
+const PLANT = 0.34;                  // how much wider the leading foot plants in a sidestep
 const _sol = { hip: 0, knee: 0 };
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const ease = (u) => u * u * (3 - 2 * u);
 const approach = (a, b, dt, k) => a + (b - a) * (1 - Math.exp(-k * dt));
 const IDLE_CTL = { hold: 'rifle', aiming: false, pitch: 0, yawErr: 0, charge: 0, bodyYaw: 0 };
@@ -25,6 +27,8 @@ export class MechPose {
     this.hover = 0;      // clock for the idle and flight sway
     this.lean = 0;       // extra shoulder twist the flight pose asks mech-aim.js for
     this.stride = (this.d.thighL + this.d.shinL) * 0.62;
+    this.side = 0;       // smoothed lateral movement, +1 = stepping to its own right
+    this.back = 0;       // smoothed reverse walk
     this.contact = [false, false];
     this.onStep = null;
     this.aim = new MechAim(mech);
@@ -34,71 +38,90 @@ export class MechPose {
   get aimT() { return this.aim.aimT; }
   set aimT(v) { this.aim.aimT = v; }
 
-  // Walking on a planet. env: { speed, runSpeed, groundAt(x, z), root, airborne }.
+  // Walking on a planet. env: { speed, runSpeed, groundAt(x, z), root, airborne, fwd, side } —
+  // fwd/side are the movement direction in the mech's own frame (+side is its right), so a strafe
+  // steps sideways instead of playing the forward march while the body slides.
   walk(dt, env) {
     const k = Math.min(1, env.speed / Math.max(1, env.runSpeed));
+    const side = env.side ?? 0, fwd = env.fwd ?? 1;
     this.move = approach(this.move, env.speed > 0.4 ? 1 : 0, dt, 8);
     this.run = approach(this.run, k, dt, 4);
-    const strideNow = this.stride * (0.8 + 0.7 * this.run) * (1 - this.brace * 0.35);
+    this.side = approach(this.side, side * this.move, dt, 6);
+    this.back = approach(this.back, Math.max(0, -fwd) * this.move, dt, 6);
+    const strideNow = this.stride * (0.8 + 0.7 * this.run) * (1 - this.brace * 0.35) * (1 - this.back * 0.32);
     if (!env.airborne) this.phase = (this.phase + (dt * env.speed) / (strideNow * 2)) % 1;
     const dip = this.crouch * (this.d.thighL + this.d.shinL) * 0.24;
     this.bob = this.move * strideNow * 0.05 * Math.cos(this.phase * Math.PI * 4) - dip;
-    for (let i = 0; i < 2; i++) this.stepLeg(i, env, strideNow);
+    for (let i = 0; i < 2; i++) this.stepLeg(i, env, strideNow, fwd, side);
     this.armSwing(dt);
+    this.groundBody(dt);
+  }
+
+  // Everything above the hips while the feet are down: breathing at rest, lean into the pace, and
+  // the hip / shoulder counter-rotation that makes a sidestep read as a sidestep.
+  groundBody(dt) {
     this.hover += dt;
+    const lat = this.side, m = this.mech;
     const still = (1 - this.move) * (1 - this.aimT);      // idle breathing, gone once it moves or aims
     const sway = Math.sin(this.hover * 1.15) * still;
-    const lean = this.move * (0.05 + this.run * 0.14) + sway * 0.028;
-    this.mech.torso.rotation.x = approach(this.mech.torso.rotation.x, lean, dt, 6);
-    this.mech.torso.rotation.z = Math.sin(this.hover * 0.71) * 0.026 * still;
-    this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, 0, dt, 6);
-    for (const leg of this.mech.legs) leg.foot.rotation.z = approach(leg.foot.rotation.z, 0, dt, 6);
-    this.lean = 0;
-    this.mech.setBinders?.(0);
-    this.mech.hips.position.y = this.d.hipY + this.bob + sway * this.d.hipY * 0.008;
+    const lean = this.move * (0.05 + this.run * 0.14) + sway * 0.028 + this.back * 0.2;
+    m.torso.rotation.x = approach(m.torso.rotation.x, lean, dt, 6);
+    m.torso.rotation.z = Math.sin(this.hover * 0.71) * 0.026 * still - lat * 0.1;
+    m.hips.rotation.y = approach(m.hips.rotation.y, lat * 0.38, dt, 7);
+    this.lean = -lat * 0.46;                              // mech-aim.js twists the shoulders back
+    m.setBinders?.(Math.abs(lat) * 0.5);
+    m.hips.position.y = this.d.hipY + this.bob + sway * this.d.hipY * 0.008 - Math.abs(lat) * this.d.hipY * 0.03;
   }
 
-  // One leg: stance sweeps the planted foot back, swing carries it forward with a lift.
-  stepLeg(i, env, stride) {
-    const leg = this.mech.legs[i], d = this.d;
+  // One leg. The step travels along the movement direction in the mech's own frame: stance sweeps
+  // the planted foot against it, swing carries the foot along it with a lift. Sideways, the leading
+  // leg also reaches out and plants wide while the trailing one draws in under the body.
+  stepLeg(i, env, stride, fwd, side) {
+    const leg = this.mech.legs[i], d = this.d, reach = d.thighL + d.shinL;
     const ph = (this.phase + (i ? 0.5 : 0)) % 1;
-    let f, lift = 0, down = true;
-    if (ph < BETA) f = stride * (0.5 - ph / BETA);
-    else {
-      const u = (ph - BETA) / (1 - BETA);
-      f = stride * (ease(u) - 0.5);
-      lift = Math.sin(Math.PI * u) * d.shinL * 0.45;
-      down = false;
-    }
-    f *= this.move;
-    const hx = leg.group.position.x;
+    const swing = ph >= BETA, u = swing ? (ph - BETA) / (1 - BETA) : 0;
+    let travel = swing ? stride * (ease(u) - 0.5) : stride * (0.5 - ph / BETA);
+    const lift = swing ? Math.sin(Math.PI * u) * d.shinL * 0.45 : 0;
+    travel *= this.move;
+    const lead = clamp(leg.side * side, -1, 1);
+    let dx = travel * side + side * stride * PLANT * lead * this.move;
+    let dz = travel * fwd;
     let ankleY;
     if (env.airborne) {                 // legs tucked under the body during a jet hop
-      ankleY = d.hipY - (d.thighL + d.shinL) * 0.68;
-      f = (i ? 0.25 : -0.1) * d.shinL;
+      ankleY = d.hipY - reach * 0.68;
+      dz = (i ? 0.25 : -0.1) * d.shinL;
+      dx = 0;
     } else {
-      const ground = env.groundAt(env.root.x + hx * env.cos - f * env.sin, env.root.z - hx * env.sin - f * env.cos);
+      const fx = leg.group.position.x + dx;
+      const ground = env.groundAt(env.root.x + fx * env.cos - dz * env.sin, env.root.z - fx * env.sin - dz * env.cos);
       ankleY = ground + d.footH + lift * this.move - env.root.y;
     }
-    solve2(d.thighL, d.shinL, f, ankleY - d.hipY - this.bob, 1, _sol);
+    const roll = Math.asin(clamp(dx / reach, -0.55, 0.55));
+    solve2(d.thighL, d.shinL, dz, (ankleY - d.hipY - this.bob) / Math.cos(roll), 1, _sol);
     leg.group.rotation.x = _sol.hip;
-    leg.group.rotation.z = leg.side * this.brace * 0.16;
+    leg.group.rotation.z = leg.side * this.brace * 0.16 + roll;
     leg.shin.rotation.x = _sol.knee;
-    leg.foot.rotation.x = -(_sol.hip + _sol.knee) - (down ? 0 : 0.35 * this.move);
-    if (down && !this.contact[i] && this.move > 0.2 && !env.airborne) this.onStep?.(i);
-    this.contact[i] = down;
+    leg.foot.rotation.x = -(_sol.hip + _sol.knee) - (swing ? 0.35 * this.move : 0);
+    leg.foot.rotation.z = -this.side * 0.34;      // ankles roll with the sidestep
+    if (!swing && !this.contact[i] && this.move > 0.2 && !env.airborne) this.onStep?.(i);
+    this.contact[i] = !swing;
   }
 
-  // Arms counter-swing with the legs; the gun arm swings less and yields to aiming.
+  // Arms counter-swing with the legs; the gun arm swings less and yields to aiming. In a sidestep
+  // they stop mirroring each other: the leading arm opens out, the trailing one crosses the chest.
   armSwing(dt) {
+    const lat = this.side, wide = Math.abs(lat);
     const s = Math.sin(this.phase * Math.PI * 2) * (0.35 + this.run * 0.35) * this.move
       + Math.sin(this.hover * 1.15) * 0.035 * (1 - this.move);
     for (let i = 0; i < 2; i++) {
       const arm = this.mech.arms[i], sign = i ? -1 : 1;
+      const k = clamp(arm.side * lat, -1, 1);
       const hold = i === 1 ? this.aim.aimT : Math.max(this.combo.drawT, this.aim.aimT * 0.6);
-      arm.upper.rotation.x = approach(arm.upper.rotation.x, sign * s * (1 - hold), dt, 12);
-      arm.upper.rotation.z = approach(arm.upper.rotation.z, -arm.side * (0.1 + this.run * 0.06) * (1 - hold), dt, 8);
-      arm.fore.rotation.x = approach(arm.fore.rotation.x, -0.25 - 0.2 * this.move * (1 - hold), dt, 10);
+      arm.upper.rotation.x = approach(arm.upper.rotation.x, (sign * s - k * 0.34 * wide) * (1 - hold), dt, 12);
+      arm.upper.rotation.z = approach(arm.upper.rotation.z,
+        -arm.side * (0.1 + this.run * 0.06 + k * 0.62 * wide) * (1 - hold), dt, 8);
+      arm.fore.rotation.x = approach(arm.fore.rotation.x,
+        -0.25 - (0.2 * this.move + Math.max(0, -k) * 0.85 * wide) * (1 - hold), dt, 10);
     }
   }
 

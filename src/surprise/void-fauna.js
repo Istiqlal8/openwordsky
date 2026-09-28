@@ -8,6 +8,8 @@ import { readyModel, cloneModel, tintedMaterial } from '../view/life/models/mode
 import { BoneAnimator } from '../view/life/models/bone-animator.js';
 import { collideRocks, rockImpactDamage } from '../game/rock-collision.js';
 import { VoidWar } from './void-war.js';
+import { VoidBrood } from './void-brood.js';
+import { applyHabit, hasBrood, stillPresent } from './void-habits.js';
 
 // size: height in world units (planets run 30–380 across, so these read as planet-scale).
 // graze: hull damage per second inside the body; mode: null leaves the mesh unanimated.
@@ -36,6 +38,7 @@ export class VoidFauna {
     this.fx = opts.fx ?? null;
     this.sfx = opts.sfx ?? null;
     this.war = null;
+    this.brood = null;
     this.onNotice = opts.onNotice ?? null;
     this.onImpact = opts.onImpact ?? null;
     this.beast = null;
@@ -62,6 +65,7 @@ export class VoidFauna {
     const deps = { space: this.space, player: this.player, fx: this.fx, sfx: this.sfx };
     this.war = new VoidWar({ ...deps, onNotice: this.onNotice });
     this.war.onKill = () => this.onDeath();
+    if (hasBrood(kind)) this.brood = new VoidBrood(deps);
   }
 
   // Builds the mesh once the GLB is ready; until then the system simply looks empty.
@@ -131,29 +135,40 @@ export class VoidFauna {
   update(dt, shipPos) {
     const b = this.beast;
     if (!b || !this.build(b)) return;
-    if (!b.warMounted) { this.war.mount(b); b.warMounted = true; }
-    this.drift(b, dt);
+    if (!b.warMounted) { this.war.mount(b); this.brood?.mount(b); b.warMounted = true; }
+    if (!b.hunting && !b.flee) this.drift(b, dt); // a hunting or fleeing creature has left its orbit
     b.anim?.update(dt, { speed: 0.35, mode: b.spec.mode });
     if (!shipPos) return;
     this.solid(b, shipPos);
     this.graze(b, dt, shipPos);
     this.war.update(dt, shipPos);
+    applyHabit(b, dt, { space: this.space, player: this.player, shipPos, aggro: this.war.aggro,
+      brood: this.brood, onNotice: this.onNotice });
+    b.group.updateMatrixWorld(true);
+    b.at.copy(b.core).applyMatrix4(b.group.matrixWorld); // habits move the group directly
   }
 
   // Player laser against the body; SpaceCombat routes its bolts here.
-  boltHit(bolt) { return this.war?.boltHit(bolt) ?? false; }
+  // The young are smaller and closer, so they soak the shot before the queen does.
+  boltHit(bolt) {
+    if (this.brood?.boltHit(bolt)) { this.war.aggro = 12; return true; }
+    return this.war?.boltHit(bolt) ?? false;
+  }
 
-  // Nearest void creature to `pos` within range, for the scanner readout.
-  nearest(pos, maxDist = 6000) {
+  // The system's void creature, for the HUD marker. It is larger than any planet here, so like
+  // the planets it stays on the marker list from anywhere in the system.
+  nearest(pos, maxDist = Infinity) {
     const b = this.beast;
     if (!b?.inst) return null;
+    if (!stillPresent(b)) return null; // a whale that fled is no longer here
     const distance = b.group.position.distanceTo(pos);
     return distance < maxDist ? { name: b.name, distance, position: b.group.position } : null;
   }
 
   dispose() {
     this.war?.dispose();
-    this.war = null;
+    this.brood?.dispose();
+    this.war = this.brood = null;
     const b = this.beast;
     if (!b) return;
     this.space.scene.remove(b.group);

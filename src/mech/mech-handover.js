@@ -18,15 +18,21 @@ export function stopFlight(s) {
 }
 
 // Folding back while still off the ground hands the ship back in flight instead of parking it.
-export function launchShip(s, pos, heading, lift) {
+// `lift` is measured so the chase camera ends up where the mech's shoulder camera was: swapping
+// frames must not drop the viewpoint. `speed` carries the mech's momentum into the hull.
+export const FLIGHT_CHASE_UP = 3.5;   // src/view/surface-flight.js CHASE.y
+export const BOARD_LIFT = 2;          // ...and the nudge board() adds on top
+
+export function launchShip(s, pos, heading, lift, speed = 0) {
   const g = s.landed.model.group;
-  g.position.set(pos.x, pos.y + lift, pos.z);
+  g.position.set(pos.x, pos.y + Math.max(1, lift), pos.z);
   g.rotation.set(0, heading, 0);
   g.scale.setScalar(1);
   g.visible = true;
   s.yaw = heading;
   s.pitch = 0;
   s.flight.board();
+  s.flight.speed = speed;             // board() zeroes it; the mech was moving, so the ship is too
 }
 
 // Fold the mech back into a parked ship and step the pilot out beside it.
