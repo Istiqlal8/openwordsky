@@ -176,8 +176,7 @@ export class MechSurface {
   }
 
   move(dt, input, s) {
-    const sprint = input.down('ShiftLeft') || input.down('ShiftRight');
-    const speed = sprint ? RUN : WALK;
+    const speed = input.down('ShiftLeft') || input.down('ShiftRight') ? RUN : WALK;
     let f = (input.down('KeyW') ? 1 : 0) - (input.down('KeyS') ? 1 : 0);
     let r = (input.down('KeyD') ? 1 : 0) - (input.down('KeyA') ? 1 : 0);
     const len = Math.hypot(f, r);
@@ -231,8 +230,7 @@ export class MechSurface {
       cap: RUN * 0.8, boost: this.jets, air,
       turn: yawGap(this.heading, this.lastYaw ?? this.heading) / Math.max(dt, 0.01) });
     this.lastYaw = this.heading;
-    // Blend on the smoothed altitude, not the raw flag: a bounce across rough ground must not
-    // snap the frame between the walk cycle and the flight pose every few frames.
+    // Blend on the smoothed altitude: a bounce must not snap between the walk cycle and flight.
     if (this.att.air > 0.55) this.pose.fly(dt, this.jets ? 1 : 0.4, this.att);
     else this.pose.walk(dt, this.env);
     this.bodyYaw = BODY_YAW * (1 - this.pose.move * 0.72) * (1 - this.att.air);
@@ -257,9 +255,7 @@ export class MechSurface {
     const ahead = s.floorAt(this.pos.x - this.env.sin * d.footL, this.pos.z - this.env.cos * d.footL);
     const back = s.floorAt(this.pos.x + this.env.sin * d.footL, this.pos.z + this.env.cos * d.footL);
     const slope = Math.atan2(ahead - back, d.footL * 2) * 0.5 * (1 - a.air);
-    // In gravity the frame keeps its feet under it: only a fraction of the flight lean carries over,
-    // so a jet hop or a fall across broken ground never tips the mech onto its face.
-    const lean = Math.max(-0.5, Math.min(0.5, a.pitch)) * 0.55;
+    const lean = Math.max(-0.5, Math.min(0.5, a.pitch)) * 0.55;   // gravity keeps its feet under it
     g.rotation.x += (slope + lean - g.rotation.x) * Math.min(1, dt * (a.air > 0.5 ? 8 : 4));
   }
 

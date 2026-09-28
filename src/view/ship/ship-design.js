@@ -13,7 +13,7 @@ const CLASSES = [
 ];
 const SUFFIX = ['Mk-II', 'Mk-III', 'Mk-IV', 'S', 'X', 'Prime', 'Nova', 'Zero', 'VII'];
 const GLOW_HUES = [0.55, 0.08, 0.6, 0.33, 0.9, 0.5];
-const STARTER_SEED = 1; // the ship a new pilot begins with wears the sculpted hull
+export const STARTER_SEED = 1; // the ship a new pilot begins with wears the sculpted hull
 
 export const clampStat = (v) => Math.round(Math.max(0.7, Math.min(1.4, v)) * 100) / 100;
 
@@ -120,7 +120,10 @@ export function shipDesign(seed) {
   };
 }
 
-// Candidate seeds for the hangar: the current ship first, then derived variants.
+// Candidate seeds for the hangar: the current ship first, then derived variants. The starter is
+// always among them, so the sculpted hull can be flown again from any save.
 export function candidateSeeds(current, count = 12) {
-  return Array.from({ length: count }, (_, i) => (i === 0 ? current >>> 0 : hash32(current, i, 0x4a6)));
+  const list = Array.from({ length: count }, (_, i) => (i === 0 ? current >>> 0 : hash32(current, i, 0x4a6)));
+  if (!list.includes(STARTER_SEED)) list[list.length - 1] = STARTER_SEED;
+  return list;
 }
