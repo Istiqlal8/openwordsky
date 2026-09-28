@@ -145,15 +145,13 @@ Added in v1.5:
   own mech brings the next challenge forward. Winning pays Nanit, XP and the rival's badge
   (`log.s.duel.wins`). Debug: `__duel.spawn(id)`, `__duel.now()`, `__duel.status()`.
 
-- **Cari material** (tombol `Cari material` di peta galaksi `M`, src/prospect/): pick a material and
-  the map finds the nearest planet that yields it. The search sweeps the 160 nearest systems and
-  reads each planet straight out of its seed — `planet.resources`, the biome's ground pickups and
-  the three items endemic to it — so it never needs the world loaded, answers in under half a
-  second and is cached per query. The result system is marked in green, selected and centred, so
-  the Warp button is one click away; reopening the map re-aims the hunt from wherever you are now.
-  After landing, the on-foot guide markers point at the hunted item when it is something lying on
-  the ground. Flora and fauna materials are deliberately not searchable: they depend on which
-  species rolled, which would cost a full makeSpecies() for every planet in the sweep.
+- **Nemesis** (src/duel/nemesis.js): beating a duellist usually does not end it. The wreck is still
+  transmitting, and the same frame rebuilds — same ship seed, same silhouette, hull charred one
+  shade darker — and comes looking. It does not wait for the usual random timer: it is already in
+  the system you warp into next, and landing does not shake it off, because the grudge follows you
+  onto the planet. Every defeat brings it back a level meaner (Pendendam, Bangkit, Tak Mati,
+  Bayangan) with more health, a shorter trigger and a bigger payout, until the fourth, which it
+  does not walk away from. Debug: `__duel.grudge()`, `__duel.hunt(id, level)`, `__duel.forgive()`.
 
 - **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
   then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,

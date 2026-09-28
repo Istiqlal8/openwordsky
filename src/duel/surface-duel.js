@@ -8,6 +8,7 @@ import { duelWorld } from './duel-link.js';
 
 const FIRST = [80, 220];    // seconds after landing before a challenge may arrive
 const AGAIN = [300, 480];   // quiet time after one ends
+const HUNTED = [25, 70];    // ...and how soon it drops on you when it is hunting you
 const PROVOKED = 10;        // standing in your own mech brings the next one forward
 const DROP_AWAY = 95;       // metres from the player it comes down
 
@@ -19,7 +20,7 @@ export class SurfaceDuel {
     this.ctx = ctx;
     this.hooks = hooks;
     this.rival = null;
-    this.wait = between(FIRST);
+    this.wait = between(duelWorld.nemesis ? HUNTED : FIRST);   // landing does not shake off a grudge
     duelWorld.duel = this;
   }
 
@@ -29,7 +30,7 @@ export class SurfaceDuel {
     if (this.rival) { this.tick(dt); return; }
     if (!alive || this.ctx.planet.gas || !this.ctx.creatures) return;
     this.wait -= dt;
-    if (this.wait <= 0) this.spawn(rivalOf(this.ctx.planet.seed ?? 0, 0xd0e2));
+    if (this.wait <= 0) this.spawn(duelWorld.nemesis ?? rivalOf(this.ctx.planet.seed ?? 0, 0xd0e2));
   }
 
   tick(dt) {

@@ -5,6 +5,7 @@ import { RaidHud } from '../ui/raid-hud.js';
 import { duelWorld } from './duel-link.js';
 import { SpaceDuel } from './space-duel.js';
 import { RIVAL_IDS, badgeOf } from './duel-data.js';
+import { noteWin, nemesisOf, clearGrudge } from './nemesis.js';
 
 const BAR_TOP = '120px';   // below the raid bar: the two can be up at once
 
@@ -23,6 +24,7 @@ export class DuelMeta {
     duelWorld.onState = () => this.changed();
     duelWorld.onDefeat = (def, pos, where) => this.won(def, where);
     w.player.on('act', (a) => { if (a?.type === 'mech') this.provoke(); });
+    this.syncNemesis();
     this.last = performance.now();
     this.expose();
   }
@@ -59,7 +61,24 @@ export class DuelMeta {
     player.emit('notice', { text: `${def.name} hancur — duel selesai.` });
     player.emit('act', { type: 'duel', id: def.id });
     sfx.discover?.();
+    this.grudge(def, player);
     this.changed();
+  }
+
+  // The wreck is still transmitting: it will rebuild and come looking. Said once, never explained.
+  grudge(def, player) {
+    const again = noteWin(this.state, def);
+    this.syncNemesis();
+    if (again) player.emit('notice', { text: 'Rangkanya masih memancarkan sinyal saat jatuh.' });
+  }
+
+  // Republish the hunting rival only when the grudge actually changes: scarring allocates.
+  syncNemesis() {
+    const g = this.state.grudge;
+    const key = g ? `${g.id}:${g.level}` : '';
+    if (key === this.nemKey) return;
+    this.nemKey = key;
+    duelWorld.nemesis = nemesisOf(this.state);
   }
 
   departed() { this.hud.set(null); }
@@ -73,6 +92,10 @@ export class DuelMeta {
       status: () => this.status(),
       now: () => this.provoke(),
       wins: () => this.state.wins,
+      grudge: () => this.state.grudge ?? null,
+      nemesis: () => duelWorld.nemesis,
+      hunt: (id, level = 1) => { this.state.grudge = { id, level }; this.nemKey = null; this.syncNemesis(); return duelWorld.nemesis; },
+      forgive: () => { clearGrudge(this.state); this.nemKey = null; this.syncNemesis(); },
     };
   }
 }

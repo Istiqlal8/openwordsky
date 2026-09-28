@@ -4,10 +4,12 @@
 import * as THREE from 'three';
 import { resolveSpace } from '../raid/raid-link.js';
 import { PHASES, RIVALS, rivalOf } from './duel-data.js';
+import { nemesisOf } from './nemesis.js';
 import { RivalSpace } from './rival-space.js';
 
 const FIRST = [70, 190];    // seconds in a system before the first challenge
 const AGAIN = [240, 420];   // quiet time after a duel ends
+const HUNT = [18, 45];      // a rival with a grudge is already waiting in the system you warp into
 const PROVOKED = 12;        // transforming into a mech brings the next one forward
 const RANGE = 520;          // how far out it drops in
 const _at = new THREE.Vector3();
@@ -20,6 +22,7 @@ export class SpaceDuel {
   constructor(w, hooks = {}) {
     this.w = w;
     this.hooks = hooks;
+    this.state = (w.log.s.duel ??= { wins: {} });
     this.rival = null;
     this.systemIndex = null;
     this.wait = between(FIRST);
@@ -32,10 +35,19 @@ export class SpaceDuel {
     // No live system (surface, gas dive, freighter): let go and re-arm on the way back.
     if (!env) { this.drop(); this.systemIndex = null; return; }
     const index = env.combat.system.index;
-    if (index !== this.systemIndex) { this.drop(); this.systemIndex = index; this.wait = between(FIRST); }
+    if (index !== this.systemIndex) { this.drop(); this.systemIndex = index; this.arrived(); }
     if (this.rival) { this.tick(dt); return; }
     this.wait -= dt;
-    if (this.wait <= 0 && !this.w.player.dead) this.spawn(env, rivalOf(this.w.save.galaxySeed, index, 0xd0e1));
+    if (this.wait <= 0 && !this.w.player.dead) this.spawn(env, this.nextRival(index));
+  }
+
+  // A rival holding a grudge does not wait for the usual random timer: it is already here.
+  arrived() {
+    this.wait = between(nemesisOf(this.state) ? HUNT : FIRST);
+  }
+
+  nextRival(index) {
+    return nemesisOf(this.state) ?? rivalOf(this.w.save.galaxySeed, index, 0xd0e1);
   }
 
   tick(dt) {
