@@ -17,6 +17,7 @@ import { DevourerAddon } from '../devourer/devourer-addon.js';
 import { RaidMeta } from '../raid/raid-meta.js';
 import { MechAddon } from '../mech/mech-addon.js';
 import { DuelMeta } from '../duel/duel-meta.js';
+import { TwinMeta } from '../twin/twin-meta.js';
 export const ADDONS = [
   MissionsAddon,
   GuideAddon,
@@ -31,4 +32,5 @@ export const ADDONS = [
   RaidMeta,
   MechAddon,
   DuelMeta,
+  TwinMeta,
 ];

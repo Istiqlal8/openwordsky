@@ -163,6 +163,14 @@ Added in v1.5:
   likelier the more they have: 18% at one, 70% at three. Everything is restored on dispose — the
   mutated cycle comes back bit-identical. Debug: `__eclipse.start() / .phase() / .cover() / .skip()`.
 
+- **Kapal kembaranmu** (src/twin/): about 6% of systems hold a drifting wreck. Its transponder
+  carries an ID the player's HUD already knows, because it is their own ship — same design, same
+  name, hull scorched to near-black with every light dead. Its flight log holds 5–7 Indonesian
+  fragments of a voyage they never made, day numbers climbing past anything they have flown, the
+  last one cut off mid-sentence. Reading it pays once (Nanit, an Artefak Kuno, sometimes a Kristal
+  Alien) and the transponder goes dark for good, though the wreck stays where it is. Nothing is
+  ever explained. Debug: `__twin.spawn() / .read() / .log() / .state()`.
+
 - **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
   then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,
   fences and decor, plus manual stations: a planter you sow and harvest with `T`, a pen you lure a
