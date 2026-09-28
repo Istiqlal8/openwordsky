@@ -156,13 +156,13 @@ export class MechPose {
     const sway = Math.sin(this.hover * 0.9), roll = Math.sin(this.hover * 1.31 + 1.1);
     this.flyLegs(dt, drive, boost, spread, idle, lat);
     this.flyArms(dt, drive, boost, sway, lat);
-    this.lean = -lat * 0.6;                     // mech-aim.js twists the shoulders onto it
-    this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, lat * 0.32, dt, 6);
+    this.lean = -lat * 0.32;                    // mech-aim.js twists the shoulders onto it
+    this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, lat * 0.2, dt, 6);
     this.mech.setWings?.(dt, att ? att.splay : 0, drive, boost);
     const t = this.mech.torso;
-    t.rotation.x = approach(t.rotation.x, 0.12 + drive * 0.34 + boost * 0.16 - this.crouch * 0.3 + sway * 0.03 * idle, dt, 4);
+    t.rotation.x = approach(t.rotation.x, 0.1 + drive * 0.2 + boost * 0.1 - this.crouch * 0.3 + sway * 0.03 * idle, dt, 4);
     t.rotation.z = roll * 0.035 * idle * (1 - this.aimT);
-    if (this.aimT < 0.01) this.mech.head.rotation.x = approach(this.mech.head.rotation.x, -drive * 0.3, dt, 5);
+    if (this.aimT < 0.01) this.mech.head.rotation.x = approach(this.mech.head.rotation.x, -drive * 0.18, dt, 5);
     this.mech.hips.position.y = approach(this.mech.hips.position.y,
       d.hipY - this.crouch * d.hipY * 0.16 + sway * d.hipY * 0.012 * idle, dt, 6);
   }
@@ -173,14 +173,14 @@ export class MechPose {
     for (const leg of this.mech.legs) {
       const beat = Math.sin(this.hover * 1.17 + (leg.side > 0 ? 0 : 1.7)) * 0.13 * idle;
       const k = Math.max(-1, Math.min(1, leg.side * lat));   // +1 on the side it is breaking toward
-      const hip = -(0.30 + drive * 0.52 + boost * 0.26) - spread * 0.3 + beat + k * 0.95;
-      const knee = 0.86 - drive * 0.46 - boost * 0.22 + spread * 0.55 - beat * 0.6
-        + Math.max(0, k) * 1.0 - Math.max(0, -k) * 0.5;      // lead knee folds up, trail leg extends
+      const hip = -(0.22 + drive * 0.38 + boost * 0.16) - spread * 0.24 + beat + k * 0.42;
+      const knee = 0.5 - drive * 0.26 - boost * 0.12 + spread * 0.4 - beat * 0.6
+        + Math.max(0, k) * 0.5 - Math.max(0, -k) * 0.24;     // lead knee folds up, trail leg extends
       leg.group.rotation.x = approach(leg.group.rotation.x, hip, dt, 5);
       leg.group.rotation.z = approach(leg.group.rotation.z,
-        leg.side * (0.07 * idle + spread * 0.26) + lat * 0.26, dt, 5);
+        leg.side * (0.05 * idle + spread * 0.2) + lat * 0.13, dt, 5);
       leg.shin.rotation.x = approach(leg.shin.rotation.x, knee, dt, 5);
-      leg.foot.rotation.x = approach(leg.foot.rotation.x, -(0.5 + drive * 0.5 + boost * 0.25) + k * 0.4, dt, 5);
+      leg.foot.rotation.x = approach(leg.foot.rotation.x, -(0.34 + drive * 0.3 + boost * 0.14) + k * 0.2, dt, 5);
       leg.foot.rotation.z = approach(leg.foot.rotation.z, -lat * 0.3, dt, 5);
     }
   }

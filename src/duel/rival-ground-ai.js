@@ -2,15 +2,23 @@
 // with a jet dash and a sabre slash. Every attack is announced a beat before it lands, so a
 // moving player can always break the line. Writes straight onto the rival (pos, yaw, velY),
 // in the same spirit as src/raid/surface-brain.js.
+//
+// It fights two different fights. Against another mech it commits: short cooldowns, knife range,
+// sabre dashes. Against a pilot on foot it holds back — it came for a duel, not for a murder —
+// staying out at rifle range, firing half as hard and never dashing unless cornered.
 import * as THREE from 'three';
+import { mechPilot } from '../mech/mech-pilot.js';
 import { yawToward, angleGap } from './rival-mech.js';
 
 const AGGRO = 190;
 const GIVE_UP = 430;
-const KEEP = 34;         // preferred firing distance, in metres
+const KEEP = 34;         // preferred firing distance against another mech, in metres
+const KEEP_FOOT = 62;    // ...and the wider ring it keeps around a pilot on foot
+const HOLD = 0.5;        // how much of its cadence and damage a held-back rival uses
 const BEAM_WARN = 0.55;
 const BEAM_R = 4.2;      // how wide the shot forgives
 const DASH_TIME = 1.5;
+const CORNERED = 22;     // a pilot this close is dashed at anyway
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
 
@@ -29,6 +37,9 @@ export class RivalGroundBrain {
 
   get feet() { return this.ctx.surface.feet; }
 
+  // True while the player is standing in their own mech: this is the duel it actually wants.
+  get matched() { return mechPilot.active; }
+
   distance() {
     const f = this.feet, p = this.r.pos;
     return Math.hypot(f.x - p.x, f.z - p.z);
@@ -39,11 +50,30 @@ export class RivalGroundBrain {
   wake() {
     if (this.state !== 'wait') return;
     this.state = 'hunt';
-    this.ctx.player.emit('notice', { text: this.def.taunt });
+    this.announce();
+  }
+
+  // Says which fight it is having, once per change, so the restraint is never invisible.
+  announce() {
+    const matched = this.matched;
+    if (this.said === matched) return;
+    this.said = matched;
+    this.ctx.player.emit('notice', { text: matched ? this.def.taunt
+      : `${this.def.name} menahan tembakan — naik rangkamu.` });
+  }
+
+  // The player transformed mid-fight: drop the restraint and open up.
+  engage() {
+    if (this.state === 'dead') return;
+    this.wake();
+    this.announce();
+    this.gunT = Math.min(this.gunT, 0.6);
+    this.dashT = Math.min(this.dashT, 1.2);
   }
 
   update(dt) {
-    const rush = 1 + this.r.stage * 0.25;
+    if (this.state !== 'wait') this.announce();
+    const rush = (1 + this.r.stage * 0.25) * (this.matched ? 1 : HOLD);
     this.t -= dt;
     this.gunT -= dt * rush;
     this.dashT -= dt * rush;
@@ -62,9 +92,11 @@ export class RivalGroundBrain {
 
   hunt(dt, d, rush) {
     if (d > GIVE_UP) { this.state = 'wait'; return; }
-    if (this.canHit() && this.dashT <= 0 && d < 90) { this.startDash(); return; }
+    const keep = this.matched ? KEEP : KEEP_FOOT;
+    const reach = this.matched ? 90 : CORNERED;
+    if (this.canHit() && this.dashT <= 0 && d < reach) { this.startDash(); return; }
     if (this.canHit() && this.gunT <= 0 && d < this.def.gun.range * 0.25) { this.startShot(rush); return; }
-    this.walk(dt, d > KEEP ? 1 : -0.6, d > KEEP * 1.6 ? 1.9 : 1);
+    this.walk(dt, d > keep ? 1 : -0.6, d > keep * 1.6 ? 1.9 : 1);
   }
 
   // Standing still to shoot: the beam is drawn thin first, then it bites.
@@ -131,7 +163,8 @@ export class RivalGroundBrain {
     const along = (px * dx + pz * dz) / len;
     const off = Math.abs((-px * dz + pz * dx) / len);
     if (along < 0 || off > BEAM_R || !this.canHit()) return;
-    this.ctx.player.damageSuit(this.def.gun.damage, `Senapan ${this.def.name}`);
+    const hit = this.def.gun.damage * (this.matched ? 1 : HOLD);
+    this.ctx.player.damageSuit(hit, `Senapan ${this.def.name}`);
     this.r.jolt(0.8);
   }
 

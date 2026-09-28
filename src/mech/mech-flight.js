@@ -5,12 +5,14 @@
 //
 // The controllers feed the result to mech.group (pitch / yaw / roll), to the thruster flare and to
 // MechPose.fly(), which reads `drive` and `boost` to trail the legs and tuck the arms.
-const LEAN = 0.36;              // nose-down at cruise
-const LEAN_BOOST = 0.82;        // ...and on top of it at full boost: the superhero lean
-const PITCH_MAX = 1.24;
-const ROLL_TURN = 0.62;
-const ROLL_STRAFE = 0.66;
-const YAW_STRAFE = 0.26;
+const LEAN = 0.24;              // nose-down at cruise
+const LEAN_BOOST = 0.42;        // ...and on top of it at full boost: the superhero lean
+const PITCH_MAX = 0.78;
+const ROLL_MAX = 0.5;
+const TILT_MAX = 0.95;          // pitch and roll together: past this the frame reads as tumbling
+const ROLL_TURN = 0.3;
+const ROLL_STRAFE = 0.34;
+const YAW_STRAFE = 0.2;
 const SPRING = 84, DAMP = 12;   // under-damped on purpose: weight, overshoot and recovery
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -70,8 +72,10 @@ export class FlightAttitude {
     this.vr += (-(this.roll - rollT) * SPRING - this.vr * DAMP) * dt;
     this.vy += (-(this.yaw - yawT) * SPRING - this.vy * DAMP) * dt;
     this.pitch = clamp(this.pitch + this.vp * dt, -PITCH_MAX, PITCH_MAX);
-    this.roll += this.vr * dt;
+    this.roll = clamp(this.roll + this.vr * dt, -ROLL_MAX, ROLL_MAX);
     this.yaw += this.vy * dt;
+    const tilt = Math.abs(this.pitch) + Math.abs(this.roll);   // never both extreme at once
+    if (tilt > TILT_MAX) { const q = TILT_MAX / tilt; this.pitch *= q; this.roll *= q; }
   }
 
   // Back to standing: called the moment the mech lands or folds away.

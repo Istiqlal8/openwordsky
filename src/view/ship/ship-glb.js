@@ -6,11 +6,13 @@
 // which the GLB has no equivalents for, and they carry the thrust and landing behaviour.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { paintLivery } from './ship-livery.js';
 
 // yaw: degrees about Y to bring the model's nose onto the ship convention (local -Z).
 // length: the model's own nose-to-tail size, used to scale it to the design's length in metres.
+// nose: the local axis running nose to tail, and which end the nose sits at.
 export const GLB_HULLS = {
-  crimson: { file: 'ship-crimson', yaw: -90, length: 1.9, lift: 0 },
+  crimson: { file: 'ship-crimson', yaw: -90, length: 1.9, lift: 0, nose: { axis: 'x', atMax: false, span: 'z' } },
 };
 
 const BASE = new URL('../../../assets/models/', import.meta.url).href;
@@ -20,7 +22,12 @@ const ready = new Map();
 
 function load(name) {
   if (!pending.has(name)) {
-    const p = loader.loadAsync(`${BASE}${GLB_HULLS[name].file}.glb`).then((g) => {
+    const spec = GLB_HULLS[name];
+    const p = loader.loadAsync(`${BASE}${spec.file}.glb`).then((g) => {
+      // Painted once on the shared geometry, so every clone of the hull gets it for free.
+      if (spec.nose) g.scene.traverse((o) => {
+        if (o.isMesh) paintLivery(o.geometry, spec.nose.axis, spec.nose.atMax, spec.nose.span);
+      });
       ready.set(name, g.scene);
       return g.scene;
     });
@@ -51,6 +58,11 @@ function instance(scene, spec, metres, mat) {
   return holder;
 }
 
+// Hard-surface material that shows the painted livery instead of a single design colour.
+function liveryMaterial() {
+  return new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.35, roughness: 0.45 });
+}
+
 // Replaces `model`'s procedural hull with the sculpted one once the file is in.
 // keep: parts of the group that must survive the swap (engines, landing legs).
 export function attachGlbHull(model, design, mats, keep) {
@@ -61,7 +73,8 @@ export function attachGlbHull(model, design, mats, keep) {
     for (const child of [...model.group.children]) {
       if (!keep.includes(child)) child.visible = false; // kept, not disposed: dispose() still frees it
     }
-    model.group.add(instance(scene, spec, model.length, mats.hull));
+    model.liveryMat = liveryMaterial();
+    model.group.add(instance(scene, spec, model.length, model.liveryMat));
   };
   const cached = ready.get(design.glb);
   if (cached) swap(cached);

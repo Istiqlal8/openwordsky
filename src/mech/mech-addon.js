@@ -2,6 +2,7 @@
 // the persistence flag. Meta addons receive the input and run after the space/surface views, so
 // the mech can take over the camera for the frame that is about to be rendered.
 import { mechLink } from './mech-link.js';
+import { mechPilot } from './mech-pilot.js';
 import { mechFor } from './mech-cache.js';
 import { MechSpace } from './mech-space.js';
 import { MechSurface } from './mech-surface.js';
@@ -39,6 +40,8 @@ export class MechAddon {
     if (mode === 'space') this.tickSpace(dt, input, app);
     else if (mode === 'surface') this.tickSurface(dt, input, app);
     else this.abort();
+    mechPilot.active = this.active;
+    mechPilot.where = this.active ? mode : null;
     this.draw(app);
   }
 
