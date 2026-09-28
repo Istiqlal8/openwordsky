@@ -1,0 +1,34 @@
+/* On-screen controls for touch devices */
+.tc-root { position: fixed; inset: 0; pointer-events: none; z-index: 40; user-select: none; -webkit-user-select: none; }
+.tc-stick {
+  position: absolute; left: 24px; bottom: 118px; width: 130px; height: 130px; border-radius: 50%;
+  border: 1px solid rgba(255, 190, 110, 0.5); background: rgba(10, 14, 22, 0.35); pointer-events: auto; touch-action: none;
+}
+.tc-knob {
+  position: absolute; left: 40px; top: 40px; width: 50px; height: 50px; border-radius: 50%;
+  background: rgba(255, 179, 71, 0.55); box-shadow: 0 0 12px rgba(255, 179, 71, 0.5);
+}
+.tc-pad {
+  position: absolute; right: 16px; bottom: 20px; display: grid; grid-template-columns: repeat(4, 56px);
+  gap: 8px; pointer-events: auto; touch-action: none;
+}
+.tc-btn {
+  height: 42px; border-radius: 10px; border: 1px solid rgba(120, 220, 255, 0.45); color: #e8f6ff;
+  background: rgba(10, 14, 22, 0.5); font: 600 13px Rajdhani, system-ui, sans-serif; letter-spacing: 0.04em;
+}
+.tc-btn:active { background: rgba(255, 179, 71, 0.45); }
+.is-touch .hints { display: none; }
+body:not([data-mode="space"]):not([data-mode="surface"]) .tc-root { display: none; }
+body[data-mode="space"] .tc-btn:not(.tc-space), body[data-mode="surface"] .tc-btn:not(.tc-surface) { display: none; }
+@media (max-width: 700px) {
+  .tc-pad { grid-template-columns: repeat(3, 52px); }
+  .tc-btn { height: 40px; font-size: 12px; }
+}
+/* Short landscape phones: let the title screen scroll and hide the key cheat sheet */
+@media (max-height: 500px) {
+  .screen-title { overflow-y: auto; justify-content: flex-start; }
+  .is-touch .title-controls { display: none; }
+}
+
+/* Keep the scan panel clear of the action pad */
+.is-touch .scan { top: 8px; max-height: 52vh; }

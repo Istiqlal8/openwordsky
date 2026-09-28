@@ -1,0 +1,101 @@
+// Everything that runs while flying inside a star system.
+import { SpaceCombat } from '../combat/space-combat.js';
+import { SpaceTraffic } from '../npc/space-traffic.js';
+import { Derelict } from '../surprise/derelict.js';
+import { SpaceEvents } from '../view/cosmos/space-events.js';
+
+export const SPACE_HINTS = [['Mouse', 'Arah'], ['W A S D', 'Dorong'], ['Space', 'Pulse'], ['R / C', 'Naik / Turun'], ['Z / X', 'Guling'],
+  ['Shift', 'Boost'], ['Klik\u00a0kiri', 'Laser'], ['Klik\u00a0kanan', 'Roket'], ['V', 'Kamera'], ['G', 'Isi daya'], ['F', 'Pindai'], ['E', 'Mendarat'],
+  ['H', 'Hangar'], ['B', 'Bengkel DIY'], ['M', 'Peta Galaksi']];
+
+const PULSE_DRAIN = 1.2; // energy per second
+const AUTO_LAND_GAP = (r) => Math.max(4, r * 0.25);
+
+const IDLE = { down: () => false, pressed: () => false, mouseDown: () => false, clicked: () => false,
+  mouse: { dx: 0, dy: 0 }, locked: false };
+
+// Same input, but Shift (boost) reads as released.
+function withoutBoost(input) {
+  return { ...input, down: (code) => code !== 'ShiftLeft' && input.down(code), mouse: input.mouse,
+    pressed: (c) => input.pressed(c), mouseDown: (b) => input.mouseDown(b), clicked: (b) => input.clicked(b) };
+}
+
+export class SpaceMode {
+  constructor({ space, player, sfx }) {
+    Object.assign(this, { space, player, sfx });
+    this.combat = new SpaceCombat(space, player, sfx);
+    this.traffic = new SpaceTraffic(space);
+    this.derelict = new Derelict(space, { player, onLoot: (text) => player.emit('notice', { text }) });
+    this.lock = false;
+    player.on('lockOn', ({ locked }) => { this.lock = locked; });
+    // Stars scorch; a black hole's horizon is lethal within a second.
+    space.onStarBurn = (dt) => player.damageShip((space.system.star.blackHole ? 400 : 35) * dt);
+    this.events = new SpaceEvents(space.scene);
+    this.events.onShake = (a) => space.shake(a);
+    this.gasNotice = 0;
+  }
+
+  enter(system, planets, spawnNear, design) {
+    this.space.mount(system, planets, { spawnNear });
+    this.traffic.mount(system);
+    this.derelict.mount(system);
+    this.events.mount(system);
+    if (design) this.space.setShip?.(design);
+    this.combat.mount(system);
+  }
+
+  // Leaving for a planet surface: stop combat noise, keep the system scene.
+  exit() {
+    this.sfx.alarm(false);
+    this.sfx.setEngine(0);
+    this.combat.dispose();
+    this.events.dispose();
+  }
+
+  // Space toggles the pulse drive; it burns energy and drops out near bodies or when empty.
+  pulse(dt, input) {
+    const sp = this.space;
+    if (input.pressed('Space')) sp.setPulse(!sp.pulsing && this.player.ship.energy > 5);
+    if (!sp.pulsing) return;
+    this.player.ship.energy = Math.max(0, this.player.ship.energy - PULSE_DRAIN * dt);
+    if (this.player.ship.energy <= 0) sp.setPulse(false, 'empty');
+  }
+
+  // Flying into a planet's atmosphere lands automatically (gas giants refuse).
+  autoLand(target, dt) {
+    if (!target || target.distance > AUTO_LAND_GAP(target.planet.radius)) return null;
+    if (!target.planet.gas) return target.planet;
+    this.gasNotice -= dt;
+    if (this.gasNotice <= 0) { this.gasNotice = 4; this.player.emit('notice', { text: 'Planet gas: tidak bisa mendarat' }); }
+    return null;
+  }
+
+  update(dt, input) {
+    const alive = !this.player.dead;
+    const inp = !alive ? IDLE : this.combat.boostAllowed ? input : withoutBoost(input);
+    if (alive) this.pulse(dt, input);
+    this.space.update(dt, inp);
+    this.traffic.update(dt);
+    this.events.update(dt, this.space.camera);
+    this.derelict.update(dt, this.space.shipObject.position);
+    this.combat.update(dt, inp);
+    this.sfx.setEngine(Math.min(1, this.space.speed / 320));
+    this.sfx.alarm(alive && this.player.ship.hull < 25);
+    const target = this.space.targetPlanet();
+    return {
+      target, looked: this.space.lookedPlanet(), landOn: alive ? this.autoLand(target, dt) : null,
+      hostiles: this.combat.hostiles, lock: this.lock, boostAllowed: this.combat.boostAllowed,
+      pulse: this.space.pulsing, npcShip: this.traffic.nearest(this.space.ship.position, 300),
+    };
+  }
+
+  onRespawn() {
+    this.combat.onRespawn();
+  }
+
+  idle(dt) {
+    this.space.update(dt, IDLE);
+    this.events.update(dt, this.space.camera);
+    this.traffic.update(dt);
+  }
+}

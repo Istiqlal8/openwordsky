@@ -1,0 +1,137 @@
+/* Combat/survival HUD: vitals bars, threat row, mining ring, inventory, death screen. */
+.vitals { position: absolute; inset: 0; pointer-events: none; }
+.vitals[data-mode="hidden"] { display: none; }
+.vitals:not([data-mode="space"]) .vbars-space,
+.vitals:not([data-mode="surface"]) .vbars-surface { display: none; }
+
+/* ---------- Bars (bottom-left) ---------- */
+.vitals-panel { position: absolute; left: 16px; bottom: 16px; width: min(260px, calc(100vw - 32px)); padding: 10px 12px; }
+.vbars { display: flex; flex-direction: column; gap: 7px; }
+.vbar { display: grid; grid-template-columns: 84px 1fr 30px; align-items: center; gap: 8px; --c: var(--cyan); }
+.vbar-label { font: 600 9px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.vbar-track { height: 7px; background: rgba(232, 238, 245, 0.1); transform: skewX(-20deg); overflow: hidden; }
+.vbar-fill {
+  height: 100%; background: var(--c); box-shadow: 0 0 8px var(--c);
+  transform-origin: 0 50%; transition: transform 0.18s linear, background 0.3s;
+}
+.vbar-val { font: 700 13px/1 var(--display); color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.bar-shield, .bar-oxygen { --c: var(--cyan); }
+.bar-hull { --c: #ff8a3d; }
+.bar-energy { --c: #ffd54a; }
+.bar-health { --c: #e8eef5; }
+.bar-hazard { --c: var(--amber); }
+.vbar.is-low { --c: var(--red); }
+.vbar.is-low .vbar-val, .vbar.is-low .vbar-label { color: var(--red); }
+.bar-hull.is-low .vbar-fill, .bar-health.is-low .vbar-fill { animation: blink 0.7s ease-in-out infinite; }
+.vbar.is-off .vbar-fill { opacity: 0.45; }
+.vitals-warn { display: flex; gap: 6px; }
+.vitals-warn:has(> :not(.is-hidden)) { margin-bottom: 8px; }
+.vwarn {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; color: var(--red);
+  font: 700 10px/1 var(--display); letter-spacing: 0.22em; text-transform: uppercase;
+  border: 1px solid rgba(255, 90, 74, 0.5); background: rgba(255, 90, 74, 0.12);
+  animation: blink 1s ease-in-out infinite;
+}
+.vwarn-hazard { padding: 2px 6px; }
+
+/* ---------- Threat row (top-center) ---------- */
+.threat { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; }
+.wanted { display: flex; gap: 7px; }
+.wanted-star { width: 11px; height: 11px; transform: rotate(45deg); border: 1px solid rgba(255, 90, 74, 0.45); }
+.wanted-star.on { background: var(--red); border-color: var(--red); box-shadow: 0 0 8px var(--red); }
+.hostiles { font: 700 11px/1 var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--red); }
+.hud:has(.vitals:not([data-mode="hidden"]) .threat:not(.is-hidden)) .toasts { top: 46px; }
+
+/* ---------- Crosshair overlays ---------- */
+.mine-ring { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px; transform: rotate(-90deg); }
+.mine-ring circle { fill: none; stroke-width: 3; }
+.mine-ring-bg { stroke: rgba(232, 238, 245, 0.15); }
+.mine-ring-arc { stroke: var(--amber); filter: drop-shadow(0 0 3px var(--amber)); transition: stroke-dashoffset 0.1s linear; }
+.mine-label {
+  position: absolute; left: 50%; top: calc(50% - 58px); transform: translateX(-50%); white-space: nowrap;
+  font: 700 12px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber);
+}
+.lock-bracket { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; animation: lock-in 0.25s ease-out; }
+.lock-c { position: absolute; width: 12px; height: 12px; border: 0 solid var(--red); filter: drop-shadow(0 0 3px var(--red)); }
+.lock-tl { left: 0; top: 0; border-width: 2px 0 0 2px; }
+.lock-tr { right: 0; top: 0; border-width: 2px 2px 0 0; }
+.lock-bl { left: 0; bottom: 0; border-width: 0 0 2px 2px; }
+.lock-br { right: 0; bottom: 0; border-width: 0 2px 2px 0; }
+.hit-marker { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; opacity: 0; }
+.hit-marker::before, .hit-marker::after {
+  content: ''; position: absolute; left: 50%; top: 0; width: 2px; height: 100%; margin-left: -1px;
+  background: linear-gradient(#fff 0 32%, transparent 32% 68%, #fff 68%); transform: rotate(45deg);
+}
+.hit-marker::after { transform: rotate(-45deg); }
+.hit-marker.is-on { animation: hit-pop 0.16s ease-out; }
+
+/* ---------- Vignettes ---------- */
+.vig { position: absolute; inset: 0; opacity: 0; }
+.vig-low { background: radial-gradient(ellipse at center, transparent 55%, rgba(200, 20, 10, 0.55)); }
+.vig-low.is-on { animation: vig-pulse 1.1s ease-in-out infinite; }
+.vig-flash { background: radial-gradient(ellipse at center, transparent 50%, rgba(255, 50, 30, 0.6)); }
+.vig-flash.is-shield { background: radial-gradient(ellipse at center, transparent 50%, rgba(80, 170, 255, 0.6)); }
+.vig-flash.is-on { animation: vig-hit 0.45s ease-out; }
+
+/* ---------- Inventory ---------- */
+.inv {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 120px); overflow: auto;
+}
+.inv.inv-in { animation: inv-in 0.2s ease-out; }
+.inv-head { display: flex; justify-content: space-between; align-items: baseline; }
+.inv-hint { font: 600 10px/1 var(--display); color: var(--muted); letter-spacing: 0.12em; }
+.inv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; margin-top: 6px; }
+.inv-slot {
+  position: relative; height: 84px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(4, 8, 14, 0.55); border: 1px solid var(--line);
+}
+.inv-slot.is-empty { background: rgba(4, 8, 14, 0.25); border-style: dashed; border-color: rgba(111, 227, 255, 0.1); }
+.inv-count { position: absolute; top: 5px; right: 7px; font: 700 12px/1 var(--display); color: var(--amber); font-variant-numeric: tabular-nums; }
+.inv-name { max-width: 100%; padding: 0 6px; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res-icon {
+  flex: none; width: 28px; height: 28px;
+  background: radial-gradient(circle at 35% 30%, hsl(var(--h) 90% 82%), hsl(var(--h) 75% 52%) 45%, hsl(var(--h) 70% 24%));
+}
+.res-shape-0 { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.res-shape-1 { clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%); }
+.res-shape-2 { border-radius: 50%; }
+
+/* ---------- Loot feed (above vitals) ---------- */
+.loot-feed { position: absolute; left: 16px; bottom: 132px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.hud:not([data-mode="space"]):not([data-mode="surface"]) .loot-feed { display: none; }
+.loot {
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px 4px 8px; background: rgba(4, 8, 14, 0.6);
+  border-left: 2px solid var(--amber); font-weight: 700; letter-spacing: 0.04em;
+  animation: loot-in 0.2s ease-out; transition: opacity 0.4s, transform 0.4s;
+}
+.loot .res-icon { width: 16px; height: 16px; }
+.loot.is-out { opacity: 0; transform: translateX(-10px); }
+
+/* ---------- Death screen ---------- */
+.death {
+  z-index: 30; pointer-events: auto; opacity: 0; transition: opacity 0.5s ease;
+  background: radial-gradient(ellipse at 50% 45%, rgba(70, 8, 6, 0.72), rgba(8, 2, 4, 0.95) 70%);
+}
+.death.is-on { opacity: 1; }
+.death-box { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 24px 16px; text-align: center; max-width: 100%; }
+.death-title {
+  font: 900 clamp(28px, 6.5vw, 68px)/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase;
+  color: #ffe9e4; text-shadow: 0 0 26px rgba(255, 60, 40, 0.7), 0 0 2px var(--red);
+}
+.death-cause { color: #ffb0a4; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; }
+.death-lost-label { margin: 10px 0 0; color: var(--red); }
+.death-lost { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 520px; }
+.death-lost li { padding: 3px 10px; border: 1px solid rgba(255, 90, 74, 0.4); color: #ffd2cb; font-weight: 600; }
+.death-btn { margin-top: 18px; min-width: 200px; }
+
+@keyframes vig-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+@keyframes vig-hit { 0% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes hit-pop { 0% { opacity: 1; transform: scale(0.7); } 100% { opacity: 0; transform: scale(1.15); } }
+@keyframes lock-in { from { transform: scale(1.7); opacity: 0; } }
+@keyframes inv-in { from { opacity: 0; transform: translate(-50%, -46%); } }
+@keyframes loot-in { from { opacity: 0; transform: translateX(-12px); } }
+@media (max-width: 640px) {
+  .vitals-panel { width: min(220px, calc(100vw - 32px)); }
+  .vbar { grid-template-columns: 76px 1fr 26px; }
+}
