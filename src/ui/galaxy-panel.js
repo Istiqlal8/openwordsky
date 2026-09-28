@@ -1,6 +1,7 @@
 // Side panel of the galaxy map: details of one system + Warp button.
-import { el, clear, hexCss } from './dom.js';
+import { el, clear, show, hexCss } from './dom.js';
 import { isEventSystem } from '../devourer/live.js';
+import { ProspectSearch } from './prospect-search.js';
 
 export function lightYears(a, b) {
   const d = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y, a.pos.z - b.pos.z);
@@ -8,7 +9,7 @@ export function lightYears(a, b) {
 }
 
 export class GalaxyPanel {
-  constructor(parent, { onWarp, onClose, onHome }) {
+  constructor(parent, { onWarp, onClose, onHome, onPick }) {
     this.root = el('aside', 'gmap-panel panel');
     const top = el('div', 'gmap-top');
     const close = el('button', 'btn btn-icon', '×');
@@ -23,8 +24,27 @@ export class GalaxyPanel {
     this.homeBtn = el('button', 'btn gmap-home', 'Pulang [P]');
     this.homeBtn.type = 'button';
     this.homeBtn.addEventListener('click', onHome);
-    this.root.append(top, this.body, this.warpBtn, this.homeBtn, this.legend());
+    this.findBtn = el('button', 'btn gmap-find', 'Cari material');
+    this.findBtn.type = 'button';
+    this.findBtn.addEventListener('click', () => this.showSearch(!this.search.isOpen));
+    this.legendBox = this.legend();
+    this.root.append(top, this.findBtn, this.body, this.warpBtn, this.homeBtn, this.legendBox);
+    this.search = new ProspectSearch(this.root, { onPick });
+    this.root.insertBefore(this.search.root, this.warpBtn);
     parent.append(this.root);
+  }
+
+  // The pane takes over the system details: the panel is only 300px wide, so they take turns.
+  showSearch(on) {
+    this.search.toggle(on);
+    show(this.body, !on);
+    show(this.legendBox, !on);
+    this.findBtn.textContent = on ? 'Lihat sistem' : 'Cari material';
+  }
+
+  // Called after the map re-runs a search, so the pane shows the fresh result.
+  refreshSearch() {
+    if (this.search.isOpen) this.search.drawResult();
   }
 
   legend() {

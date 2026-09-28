@@ -1,10 +1,11 @@
 // Picks what the on-foot guide markers point at: the endemic relic, explorers with a request and
 // ground pickups the active quests ask for. Returns at most MAX targets, most useful first.
 import { requestOf } from '../quest/npc-requests.js';
+import { hunt } from '../prospect/prospect-hunt.js';
 import { questLink } from './quest-link.js';
 
 const MAX = 4;
-const COLOR = { relic: '#5ff4ff', npc: '#9dff6a', quest: '#ffb040' };
+const COLOR = { relic: '#5ff4ff', npc: '#9dff6a', quest: '#ffb040', hunt: '#7dffb2' };
 const flat = (a, f) => Math.hypot(a.x - f.x, a.z - f.z);
 
 function nearest(list, feet) {
@@ -38,6 +39,13 @@ function neededNames(names, relic) {
   return want;
 }
 
+// The material picked on the galaxy map, once the player is standing on a planet that drops it.
+function huntTargets(pickups, feet) {
+  if (!hunt.item || !pickups?.names.includes(hunt.item)) return [];
+  const it = nearest(pickups.items.filter((i) => i.name === hunt.item), feet);
+  return it ? [{ id: `p${it.key}`, kind: 'hunt', label: it.name, x: it.x, y: it.y + 1.4, z: it.z }] : [];
+}
+
 function questTargets(pickups, feet) {
   const relic = pickups.names[3];
   const out = [];
@@ -54,6 +62,7 @@ export function guideTargets(ctx) {
   const byDist = (list) => list.map((t) => ({ ...t, color: COLOR[t.kind], d: flat(t, feet) })).sort((a, b) => a.d - b.d);
   const list = [
     ...byDist(pickups ? relicTarget(pickups.items, feet) : []),
+    ...byDist(pickups ? huntTargets(pickups, feet) : []),
     ...byDist(npcTargets(ctx.visitors, ctx.planet)).slice(0, 2),
     ...byDist(pickups ? questTargets(pickups, feet) : []),
   ];

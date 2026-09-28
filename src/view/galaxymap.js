@@ -8,11 +8,14 @@ import {
 } from '../ui/galaxy-render.js';
 import { drawEventMarker } from '../devourer/map-marker.js';
 import { drawVoidFauna } from '../surprise/void-map-marker.js';
+import { hunt, setHunt } from '../prospect/prospect-hunt.js';
 
 const START_SCALE = 1.6;
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 14;
 const CLICK_SLOP = 5;
+const FOCUS_SCALE = 3.2;   // zoom the search result is worth looking at
+const HUNT_COLOR = '#7dffb2';
 
 const HOME = 0; // Tata Surya
 
@@ -44,6 +47,7 @@ export class GalaxyMap {
       onWarp: () => this.warp(this.selected),
       onHome: () => this.warp(HOME),
       onClose: () => this.userClose(),
+      onPick: (name) => this.pickMaterial(name),
     });
     document.body.append(this.root);
   }
@@ -57,6 +61,7 @@ export class GalaxyMap {
     this.cam.cx = this.current.pos.x;
     this.cam.cz = this.current.pos.z;
     this.cam.scale = START_SCALE;
+    if (hunt.item) this.pickMaterial(hunt.item);   // "nearest" is relative: re-aim from where we are now
     this.open_ = true;
     show(this.root, true);
     this.resize();
@@ -90,6 +95,7 @@ export class GalaxyMap {
   }
 
   handleKey(e) {
+    if (e.target instanceof HTMLInputElement) return;   // the search box owns its own keys
     if (e.code === 'KeyM' || e.code === 'Escape') {
       e.preventDefault();
       this.userClose();
@@ -135,8 +141,28 @@ export class GalaxyMap {
     }
     drawCurrent(ctx, cam, this.current, time);
     drawHome(ctx, cam, this.systems[HOME]);
+    if (hunt.hit) drawMarker(ctx, cam, hunt.hit.system, HUNT_COLOR, hunt.item);
     drawVoidFauna(ctx, cam, systems, this.visited, time);
     drawEventMarker(ctx, cam, systems, time);
+  }
+
+  // Search for a material and put the result under the cursor: selecting it arms the Warp button,
+  // so finding Karbon and flying to it is one click apart.
+  pickMaterial(name) {
+    const hit = setHunt(name, this.seed, this.current.index);
+    if (hit) this.focusSystem(hit.system.index);
+    this.panel.refreshSearch();
+    return hit;
+  }
+
+  focusSystem(index) {
+    if (index < 0 || !this.systems[index]) return;
+    this.selected = index;
+    const s = this.systems[index];
+    this.cam.cx = s.pos.x;
+    this.cam.cz = s.pos.z;
+    this.cam.scale = Math.max(this.cam.scale, FOCUS_SCALE);
+    this.refreshPanel();
   }
 
   planetsFor(index) {

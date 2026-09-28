@@ -101,7 +101,7 @@ function isGasGiant(seed, index) {
   return new Rng(hash32(seed, 0x6a5)).chance(index >= 4 ? 0.45 : 0.28);
 }
 
-const GAS_RES = ['Hidrogen', 'Helium', 'Metana', 'Ammonia', 'Belerang', 'Tritium'];
+export const GAS_RES = ['Hidrogen', 'Helium', 'Metana', 'Ammonia', 'Belerang', 'Tritium'];
 
 function gasGiant(p, rng) {
   const ice = rng.chance(0.4);
