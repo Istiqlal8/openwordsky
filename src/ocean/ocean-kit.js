@@ -3,6 +3,9 @@
 import * as THREE from 'three';
 
 export const oceanTime = { value: 0 };
+// Self-lit share of the base color, so life stays readable in murky water; DeepSea lowers it
+// with depth and at night (the abyss needs the headlights).
+export const oceanFill = { value: 0.25 };
 
 // Merges { geo, color, t? } parts into one non-indexed geometry with a vertex color per part
 // and an optional per-vertex float attribute 'aT' (e.g. position along a tentacle).
@@ -36,14 +39,16 @@ export function mergeParts(parts) {
 
 // Injects GLSL into a stock material: head (both stages), vertex body after begin_vertex,
 // fragment body after color_fragment. key keeps shader programs apart.
-export function patchMaterial(mat, key, { head = '', vertex = '', fragment = '', extra = {} }) {
+export function patchMaterial(mat, key, { head = '', vertex = '', fragment = '', fill = 0, extra = {} }) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = oceanTime;
+    shader.uniforms.uFill = oceanFill;
     Object.assign(shader.uniforms, extra);
     const h = `uniform float uTime;\nattribute float aT;\nvarying float vPulse;\n${head}\n`;
     shader.vertexShader = h + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\nvPulse = 0.0;\n${vertex}`);
-    shader.fragmentShader = `uniform float uTime;\nvarying float vPulse;\n${head.replace(/attribute[^;]*;/g, '')}\n` +
-      shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n${fragment}`);
+    shader.fragmentShader = `uniform float uTime;\nuniform float uFill;\nvarying float vPulse;\n${head.replace(/attribute[^;]*;/g, '')}\n` +
+      shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>\n${fragment}`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${fill ? `totalEmissiveRadiance += diffuseColor.rgb * uFill * ${fill.toFixed(2)};` : ''}`);
   };
   mat.customProgramCacheKey = () => `ocean-${key}`;
   return mat;
@@ -57,7 +62,7 @@ const INST = `#ifdef USE_INSTANCING
 
 // Plants: bend grows with height (geometry y in 0..1); phase from the instance position.
 export function swayMaterial(key, opts, amount = 0.35, speed = 1.1) {
-  return patchMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, ...opts }), key, {
+  return patchMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, ...opts }), key, { fill: 1,
     vertex: `${INST}
   float sk = max(position.y, 0.0); float sph = uTime * ${speed.toFixed(2)} + ip.x * 0.21 + ip.z * 0.17;
   transformed.x += sin(sph) * sk * sk * ${amount.toFixed(2)} + sin(sph * 2.3 + sk * 3.0) * sk * 0.05;
@@ -69,7 +74,7 @@ export function swayMaterial(key, opts, amount = 0.35, speed = 1.1) {
 export function fishMaterial(key, opts = {}, unlit = false) {
   const mat = unlit ? new THREE.MeshBasicMaterial({ vertexColors: true, ...opts })
     : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.25, ...opts });
-  return patchMaterial(mat, key, {
+  return patchMaterial(mat, key, { fill: unlit ? 0 : 0.8,
     vertex: `${INST}
   float fk = smoothstep(0.2, -0.55, position.x);
   transformed.z += sin(uTime * 11.0 + iid * 1.37 - position.x * 5.0) * 0.16 * fk;
@@ -94,16 +99,31 @@ export function jellyMaterial(key) {
   });
 }
 
-// Canvas texture: soft vertical fade (1 at the top, 0 at the bottom) for light cones and rays.
-export function fadeTexture() {
+// Lit material with the underwater fill (see oceanFill).
+export function filledMaterial(key, opts, fill = 1) {
+  return patchMaterial(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, ...opts }), key, { fill });
+}
+
+// Canvas texture: soft vertical fade (1 at the top, 0 at the bottom) for light cones and rays;
+// soft: also fades out toward the left and right edges (sunbeams).
+export function fadeTexture(soft = false) {
   const c = document.createElement('canvas');
-  c.width = 4; c.height = 64;
+  c.width = 32; c.height = 64;
   const g = c.getContext('2d'), grad = g.createLinearGradient(0, 0, 0, 64);
-  grad.addColorStop(0, 'rgba(255,255,255,1)');
-  grad.addColorStop(0.35, 'rgba(255,255,255,0.45)');
-  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  grad.addColorStop(0, '#fff');
+  grad.addColorStop(0.35, '#737373');
+  grad.addColorStop(1, '#000');
   g.fillStyle = grad;
-  g.fillRect(0, 0, 4, 64);
+  g.fillRect(0, 0, 32, 64);
+  if (soft) {
+    const side = g.createLinearGradient(0, 0, 32, 0);
+    side.addColorStop(0, '#000');
+    side.addColorStop(0.5, '#fff');
+    side.addColorStop(1, '#000');
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = side;
+    g.fillRect(0, 0, 32, 64);
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;

@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { hsl } from '../core/color.js';
 import { mesh, pivot } from './body-kit.js';
+import { HULLS_B } from './alien-ship-models-b.js';
 
 function shipMats(race, rng) {
   const hue = rng.range(race.hue[0], race.hue[1]);
@@ -106,7 +107,7 @@ function manta(kit, m, rng) {
   return { group: g, spin: [], flaps };
 }
 
-const HULLS = { shard, insect, pod, saucer, manta };
+const HULLS = { shard, insect, pod, saucer, manta, ...HULLS_B };
 
 export function buildAlienShip(kit, race, rng) {
   const m = shipMats(race, rng);

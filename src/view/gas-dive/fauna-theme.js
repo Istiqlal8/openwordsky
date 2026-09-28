@@ -4,10 +4,10 @@ import * as THREE from 'three';
 import { Rng, hash32 } from '../../core/rng.js';
 
 const TONES = {
-  jupiter: { hue: 0.055, spread: 0.035, sat: 0.92, body: 0x4a2618, belly: 0xd09060 },
-  saturn: { hue: 0.125, spread: 0.025, sat: 0.62, body: 0x5a4a2e, belly: 0xeadcae },
-  uranus: { hue: 0.49, spread: 0.035, sat: 0.7, body: 0x264c56, belly: 0xc4f1f2 },
-  neptune: { hue: 0.6, spread: 0.05, sat: 0.85, body: 0x15204a, belly: 0x86a8ff },
+  jupiter: { hue: 0.055, spread: 0.035, sat: 0.92, body: 0x6e3a20, belly: 0xd09060 },
+  saturn: { hue: 0.125, spread: 0.025, sat: 0.62, body: 0x7a6844, belly: 0xeadcae },
+  uranus: { hue: 0.49, spread: 0.035, sat: 0.7, body: 0x3a6c78, belly: 0xc4f1f2 },
+  neptune: { hue: 0.6, spread: 0.05, sat: 0.85, body: 0x24388a, belly: 0x86a8ff },
   venus: { hue: 0.11, spread: 0.03, sat: 0.72, body: 0x5a4628, belly: 0xf2dfae },
 };
 
@@ -24,11 +24,13 @@ function proceduralTone(pal) {
     belly: pal.glow.getHex() };
 }
 
-// Species name: whales carry the planet name, others get a seeded epithet.
-function nameOf(kind, planetName, seed) {
+const KINDS = Object.keys(BASE);
+
+// Species name: whales carry the planet name, most others a seeded epithet (unique per planet).
+function nameOf(kind, planetName, seed, epithets) {
   if (kind === 'whale') return `${BASE.whale} ${planetName}`;
-  const pick = hash32(seed, kind.length * 131 + kind.charCodeAt(0));
-  return pick % 3 === 0 ? BASE[kind] : `${BASE[kind]} ${EPITHETS[pick % EPITHETS.length]}`;
+  const i = KINDS.indexOf(kind);
+  return hash32(seed, 0x4a3e, i) % 4 === 0 ? BASE[kind] : `${BASE[kind]} ${epithets[i]}`;
 }
 
 export class FaunaTheme {
@@ -38,12 +40,13 @@ export class FaunaTheme {
     this.planet = pal.name ?? 'Raksasa Gas';
     this.body = new THREE.Color(this.tone.body);
     this.belly = new THREE.Color(this.tone.belly);
+    this.epithets = new Rng(hash32(this.seed, 0xe917)).take(EPITHETS, KINDS.length);
   }
 
   // Seeded rng for one species.
   rng(kind) { return new Rng(hash32(this.seed, 0xfa0a, kind.charCodeAt(0), kind.length)); }
 
-  name(kind) { return nameOf(kind, this.planet, this.seed); }
+  name(kind) { return nameOf(kind, this.planet, this.seed, this.epithets); }
 
   // Glow color shifted along the planet hue; light 0..1.
   glow(rng, shift = 0, light = 0.58) {

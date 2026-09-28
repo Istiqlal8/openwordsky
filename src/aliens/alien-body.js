@@ -3,8 +3,13 @@
 import { makeMats } from './body-kit.js';
 import { buildVorran, buildKsirr, buildAquor } from './bodies-a.js';
 import { buildBlubo, buildMekanid } from './bodies-b.js';
+import { buildKristalin, buildMikoni, buildAveli, buildBatugar } from './bodies-c.js';
+import { buildRimbuna, buildTintari, buildKribo, buildLumari } from './bodies-d.js';
+import { buildSaurak, buildWolla, buildNexar } from './bodies-e.js';
 
-const BUILDERS = { vorran: buildVorran, ksirr: buildKsirr, aquor: buildAquor, blubo: buildBlubo, mekanid: buildMekanid };
+export const BUILDERS = { vorran: buildVorran, ksirr: buildKsirr, aquor: buildAquor, blubo: buildBlubo, mekanid: buildMekanid,
+  kristalin: buildKristalin, mikoni: buildMikoni, aveli: buildAveli, batugar: buildBatugar, rimbuna: buildRimbuna,
+  tintari: buildTintari, kribo: buildKribo, lumari: buildLumari, saurak: buildSaurak, wolla: buildWolla, nexar: buildNexar };
 
 export class AlienBody {
   // kit: GeoKit shared by the whole outpost; rng: the individual's Rng.
@@ -40,7 +45,7 @@ export class AlienBody {
     this.rig.torso.position.y += bob;
   }
 
-  // Blubo: hover bob, tentacles ripple, lean into motion.
+  // Floaters (Blubo, Tintari, Lumari): hover bob, tentacles ripple, lean into motion.
   floatCycle(swing, speed) {
     const t = this.t + this.phase, torso = this.rig.torso;
     torso.userData.y0 ??= torso.position.y;

@@ -5,6 +5,7 @@ import { Rng, hash32 } from '../core/rng.js';
 import { makeCanvas, toTexture } from '../assets/canvas.js';
 import { glowTexture } from '../assets/textures.js';
 import { SPACE_DOOR } from './interior-shell.js';
+import { PlanetBody } from '../view/space-planet.js';
 
 const SUN_DIR = new THREE.Vector3(-0.8, 0.35, 0.5).normalize();
 
@@ -65,34 +66,51 @@ function planet(g, rng, textures, center, radius) {
   return body;
 }
 
-function forceField(g, textures) {
+// One shared shimmering material across every space door { x0, x1, h, z }.
+function forceField(g, textures, doors) {
   const c = makeCanvas(64, 256), x = c.getContext('2d');
   for (let y = 0; y < 256; y += 8) { x.fillStyle = `rgba(120,220,255,${0.15 + (y % 32 ? 0 : 0.4)})`; x.fillRect(0, y, 64, 2); }
   const tex = toTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(12, 3);
   textures.push(tex);
-  const D = SPACE_DOOR;
   const mat = new THREE.MeshBasicMaterial({ map: tex, color: 0x66d0ff, transparent: true, opacity: 0.35,
     blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(D.x1 - D.x0, D.h), mat);
-  m.position.set(0, D.h / 2, D.z - 0.05);
-  g.add(m);
+  for (const D of doors) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(D.x1 - D.x0, D.h), mat);
+    m.position.set((D.x0 + D.x1) / 2, D.h / 2, D.z - 0.05);
+    g.add(m);
+  }
   return { mat, tex };
 }
 
-// Returns { planet, field } for animation.
-export function buildOutside(g, seedText, textures) {
+// A real planet of the current system (same look as in space), scaled to fill `radius`.
+function realPlanet(g, planet, center, radius) {
+  const body = new PlanetBody(planet);
+  body.update(0);
+  body.group.position.copy(center);
+  body.group.scale.setScalar(radius / planet.radius);
+  g.add(body.group);
+  return body.group;
+}
+
+// Returns { planet, field } for animation. near = the system's nearest planets (closest first);
+// doors = the plan's space doors.
+export function buildOutside(g, seedText, textures, near = [], starColor = 0xfff0c0, doors = [SPACE_DOOR]) {
   let seed = 7;
   for (const ch of String(seedText)) seed = hash32(seed, ch.charCodeAt(0));
   const rng = new Rng(seed);
   g.add(stars(rng));
-  const body = planet(g, rng, textures, new THREE.Vector3(160, 40, 820), 330);
-  planet(g, rng, textures, new THREE.Vector3(-380, 120, -900), 90);
-  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(0xfff0c0), transparent: true,
+  const slots = [[new THREE.Vector3(160, 40, 820), 330], [new THREE.Vector3(-380, 120, -900), 90]];
+  const body = near[0] ? realPlanet(g, near[0], ...slots[0]) : planet(g, rng, textures, ...slots[0]);
+  if (near[1]) realPlanet(g, near[1], ...slots[1]); else planet(g, rng, textures, ...slots[1]);
+  const light = new THREE.DirectionalLight(starColor, 2.2);
+  light.position.copy(SUN_DIR).multiplyScalar(1000);
+  g.add(light, new THREE.AmbientLight(0x8090a8, 0.25));
+  const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(starColor), transparent: true,
     depthWrite: false, blending: THREE.AdditiveBlending }));
   sun.position.copy(SUN_DIR).multiplyScalar(1200);
   sun.scale.setScalar(260);
   g.add(sun);
-  return { planet: body, field: forceField(g, textures) };
+  return { planet: body, light, field: forceField(g, textures, doors) };
 }

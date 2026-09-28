@@ -1,5 +1,6 @@
 // Suit life support + hazard protection drain, storms and G-key recharge.
 import { upgradeMul } from '../craft/upgrades.js';
+import { buffMul } from '../craft/buffs.js';
 
 const LIFE_DRAIN = 100 / 360;    // full tank lasts ~6 minutes
 const HAZARD_DRAIN = 100 / 240;  // per hazard factor
@@ -47,7 +48,7 @@ export class LifeSupport {
     // Breathable air doesn't help underwater (set each frame by surface-mode).
     const life = this.air && !this.submerged ? LIFE_REGEN : -LIFE_DRAIN * upgradeMul(this.player, 'oxygen') * (this.submerged ? 3 : 1);
     suit.lifeSupport = Math.min(100, Math.max(0, suit.lifeSupport + life * dt));
-    const hz = this.factors ? -HAZARD_DRAIN * this.drainFactor() * stormMul : HAZARD_REGEN;
+    const hz = this.factors ? -HAZARD_DRAIN * this.drainFactor() * stormMul * (this.shelter ?? 1) : HAZARD_REGEN;
     suit.hazard = Math.min(100, Math.max(0, suit.hazard + hz * dt));
     this.starve('life', suit.lifeSupport, dt, 'Kehabisan oksigen');
     this.starve('hazard', suit.hazard, dt, 'Paparan bahaya');
@@ -56,7 +57,8 @@ export class LifeSupport {
   // Crafted suit upgrades scale the heat/cold and the radiation/toxic parts separately.
   drainFactor() {
     const p = this.player;
-    return this.heat * upgradeMul(p, 'thermal') + (this.factors - this.heat) * upgradeMul(p, 'filter');
+    return this.heat * upgradeMul(p, 'thermal') * buffMul('warm', p)
+      + (this.factors - this.heat) * upgradeMul(p, 'filter') * buffMul('toxic', p);
   }
 
   tickStorm(dt) {

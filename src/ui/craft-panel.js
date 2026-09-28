@@ -3,7 +3,7 @@
 import { el, clear, show } from './dom.js';
 import { resourceIcon } from './inventory.js';
 
-const TABS = [['craft', 'Racik'], ['market', 'Pasar']];
+const TABS = [['craft', 'Racik'], ['cook', 'Dapur'], ['ship', 'Pesawat'], ['market', 'Pasar']];
 
 function pips(tier, max) {
   const p = el('span', 'cr-pips');

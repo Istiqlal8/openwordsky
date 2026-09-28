@@ -18,6 +18,14 @@ const RAW = {
   longneck: { yaw: 19, rig: 'quad' }, triceratops: { yaw: 33, rig: 'quad' },
   deer: { yaw: 90, rig: 'quad' }, lizard: { yaw: -90, rig: 'quad' },
   bird: { yaw: 0, rig: 'bird' }, whale: { yaw: 90, pitch: -14, rig: 'whale' },
+  behemoth: { yaw: 0, rig: 'quad' }, predator: { yaw: 90, rig: 'biped' },
+  crawler: { yaw: 0, rig: 'quad' }, leviathan: { yaw: -90, rig: 'whale' },
+  skybeast: { yaw: 0, pitch: -90, rig: 'bird' },
+  sandworm: { yaw: 0, rig: null }, // rig null: the coiled pose has no skeleton, so it is posed as one mesh
+  // Void fauna: drifting space creatures. They never stand, so none of them use a leg rig.
+  devourer: { yaw: 0, rig: null }, voidwhale: { yaw: 90, pitch: 13, rig: 'whale' },
+  kraken: { yaw: 0, rig: 'whale' }, hivequeen: { yaw: 0, rig: 'whale' },
+  guardian: { yaw: 0, rig: 'whale' }, starleech: { yaw: 56, rig: 'whale' },
 };
 
 const loader = new GLTFLoader();
@@ -40,9 +48,9 @@ function normalize(name, gltfScene) {
   pivot.position.set(-(box.min.x + box.max.x) / 2 * s, -box.min.y * s, -(box.min.z + box.max.z) / 2 * s);
   root.updateMatrixWorld(true);
   const meshes = [];
-  root.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
+  root.traverse((o) => { if (cfg.rig ? o.isSkinnedMesh : o.isMesh) meshes.push(o); });
   return { name, rig: cfg.rig, scene: root, meshes, length: size.x * s, width: size.z * s,
-    profile: buildRigProfile(root, cfg.rig, meshes[0]) };
+    profile: cfg.rig ? buildRigProfile(root, cfg.rig, meshes[0]) : null };
 }
 
 // -> Promise<template>; the file is fetched once per session.

@@ -1,0 +1,29 @@
+/* Fishing reel HUD + fish log, and the fleet board / tracker. */
+.fish-reel { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: min(340px, calc(100vw - 32px));
+  padding: 10px 14px; display: grid; gap: 8px; z-index: 6; }
+.fish-status { font: 600 13px/1.3 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--cyan); text-align: center; }
+.fish-reel.is-bite .fish-status { color: var(--amber); animation: fish-pulse 0.25s ease-in-out infinite alternate; }
+@keyframes fish-pulse { from { transform: scale(1); } to { transform: scale(1.12); } }
+.fish-track { position: relative; height: 18px; background: rgba(111, 227, 255, 0.1); border: 1px solid var(--line); }
+.fish-zone { position: absolute; top: 0; bottom: 0; background: rgba(120, 255, 150, 0.3); border: 1px solid rgba(120, 255, 150, 0.7); }
+.fish-track.is-in .fish-zone { background: rgba(120, 255, 150, 0.55); }
+.fish-marker { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: #fff; box-shadow: 0 0 6px #fff; }
+.fish-meter { height: 5px; background: rgba(255, 176, 64, 0.15); }
+.fish-fill { display: block; height: 100%; background: var(--amber); }
+.fish-track.is-hidden, .fish-meter.is-hidden { display: none; }
+.q-card.is-fish .q-title { color: #7fd8ff; }
+.fish-row { font-size: 12.5px; }
+.fish-row.is-rare .q-goal, .fish-row.is-endemic .q-goal { color: #b99bff; }
+.fish-row.is-legendary .q-goal { color: var(--amber); }
+
+.fleet-board { z-index: 8; }
+.hud:has(.fleet-board:not(.is-hidden)) .q-tracker { display: none; }
+.fleet-frigate { padding: 6px 10px; }
+.fleet-frigate.is-sel { border-color: var(--cyan); background: rgba(111, 227, 255, 0.08); }
+.fleet-frigate.is-damaged .q-num { color: var(--red); }
+.fleet-types { display: grid; gap: 4px; padding: 6px 2px; border-top: 1px solid var(--line); }
+.fleet-type .q-goal { color: var(--text); }
+.fleet-buy { padding-top: 6px; border-top: 1px solid var(--line); }
+.fleet-report { color: #9dff6a; font-size: 12.5px; }
+.q-track.is-fleet .q-title, .q-card.is-fleet .q-title { color: #9fc4ff; }
+.is-fleet .q-fill { background: #9fc4ff; }

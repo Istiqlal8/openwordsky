@@ -30,10 +30,15 @@ import { SurfaceMode } from './surface-mode.js';
 import { QuestWiring } from './quest-wiring.js';
 import { Overlays } from './overlays.js';
 import { useItem } from '../items/use.js';
+import { CapitalFleet } from '../fleet/index.js';
+import { loadLook } from '../character/look-store.js';
+import { FreighterShop } from '../fleet/freighter-shop.js';
+import { FreighterYard } from '../fleet/freighter-yard.js';
+import { bootAntialias, bindRenderer } from '../settings/graphics.js';
 
 function makeRenderer(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: bootAntialias() });
+  bindRenderer(renderer); // pixel ratio from the quality setting
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   return renderer;
 }
@@ -60,10 +65,12 @@ export function createApp() {
   const a = { canvas, hudRoot, save, input, renderer: makeRenderer(canvas), ...makeUi(hudRoot) };
   a.sfx = new Sfx();
   a.player = new PlayerState(save.player);
+  a.fleet = new CapitalFleet(save);
   a.inventory.onUse = (name, action) => useItem(a.player, name, action);
   a.quests = new QuestWiring({ save, player: a.player, hud: a.hud, sfx: a.sfx, hudRoot });
   a.space = new SpaceView();
   a.surface = new SurfaceView();
+  a.surface.setLook(loadLook(save));
   a.gas = new GasDive();
   a.freighter = new Freighter(a.space);
   a.freighterInterior = new FreighterInterior();
@@ -71,6 +78,7 @@ export function createApp() {
   a.spaceMode = new SpaceMode({ space: a.space, player: a.player, sfx: a.sfx });
   a.surfaceMode = new SurfaceMode({ surface: a.surface, player: a.player, sfx: a.sfx, hud: a.hud });
   a.surfaceMode.gameplay.arsenal?.attachSave(save);
+  a.quests.app = a; // meta addons that need the live 3D scenes (e.g. src/devourer/)
   a.totalPlanets = allSystems(save.galaxySeed).reduce((n, s) => n + s.planetCount, 0);
   a.game = { mode: 'title', system: null, planets: [], planet: null, design: initialDesign(save), saveTimer: 0 };
   a.space.setShip(a.game.design);
@@ -82,6 +90,10 @@ export function attachOverlays(a, flow) {
   a.overlays = new Overlays({ input: a.input, sfx: a.sfx, hangar: a.hangar, save: a.save, player: a.player, hud: a.hud,
     arsenal: a.surfaceMode.gameplay.arsenal,
     setMode: (m) => flow.setMode(m), getMode: () => a.game.mode,
-    onShip: (d, spec) => flow.useShip(d, spec), persist: () => flow.persist() });
+    onShip: (d, spec) => flow.useShip(d, spec), persist: () => flow.persist(), surface: a.surface });
   a.overlays.shipyard = new Shipyard();
+  a.overlays.freighterShop = new FreighterShop();
+  a.overlays.freighterYard = new FreighterYard();
+  a.overlays.fleet = a.fleet;
+  a.overlays.onFleetChange = () => flow.enterSystem(a.game.system.index);
 }

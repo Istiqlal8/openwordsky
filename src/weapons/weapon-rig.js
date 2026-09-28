@@ -55,7 +55,7 @@ export class WeaponRig {
   }
 
   switchKeys(input) {
-    const i = SLOT_KEYS.findIndex((k) => input.pressed(k));
+    const i = input.uiCapture ? -1 : SLOT_KEYS.findIndex((k) => input.pressed(k)); // a panel owns 1–9
     let changed = i >= 0 && this.arsenal.equipSlot(i + 1);
     if (this.wheel) { changed = this.arsenal.cycle(this.wheel > 0 ? 1 : -1) || changed; this.wheel = 0; }
     if (changed) playWeaponSfx(this.ctx.sfx, 'equip');

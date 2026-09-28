@@ -3,12 +3,14 @@ import { systemAt, planetsOf } from '../gen/galaxy.js';
 import { writeSave, markVisited, recordDiscovery, discoveryCount } from '../state.js';
 import { hexCss } from '../ui/dom.js';
 import { runTutorial } from './tutorial.js';
+import { interiorStyleOf } from '../freighter/interior/style.js';
 import { SPACE_HINTS } from './space-mode.js';
 import { SURFACE_HINTS } from './surface-mode.js';
+import { shipMod } from '../craft/ship-mods.js';
 
 const WARP_COST = 30;
 export const GAS_HINTS = [['Mouse', 'Arah'], ['W', 'Maju'], ['Shift', 'Boost'], ['S', 'Rem'],
-  ['Space / R', 'Naik'], ['C', 'Turun'], ['Z / X', 'Guling']];
+  ['Space / R', 'Naik'], ['C', 'Turun'], ['Z / X', 'Guling'], ['F', 'Pindai makhluk']];
 const PLAY_MODES = new Set(['space', 'surface', 'gas', 'freighter']);
 export const FREIGHTER_HINTS = [['W A S D', 'Jalan'], ['Shift', 'Lari'], ['Space', 'Lompat'], ['V', 'Kamera'],
   ['T', 'Gunakan'], ['E', 'Naik pesawat']];
@@ -59,7 +61,7 @@ export class Flow {
     spaceMode.enter(g.system, g.planets, spawnNear, g.design);
     markVisited(save, index);
     hud.setSystem(g.system, g.planets, spawnNear ?? -1);
-    this.a.freighter.mount(g.system);
+    this.a.freighter.mount(g.system, this.a.fleet?.owned?.spec ?? null);
     this.refreshStats();
   }
 
@@ -76,6 +78,7 @@ export class Flow {
     const { spaceMode, surfaceMode, sfx, player, hud, quests, save } = this.a, g = this.game;
     g.planet = planet;
     g.flying = false;
+    g.rideMode = null; // forces the surface hints (and the depth row) to be rebuilt
     spaceMode.exit();
     surfaceMode.enter(planet, g.system, g.design, save.galaxySeed);
     sfx.setAmbient(planet);
@@ -149,14 +152,14 @@ export class Flow {
     g.design = design;
     space.setShip(design);
     if (g.mode === 'surface' || overlays.back === 'surface') { surface.setShip(design); surfaceMode.base.parkShip(); }
-    if (g.mode === 'freighter' || overlays.back === 'freighter') this.a.freighterInterior.mount(design, 'Kapal Induk');
+    if (g.mode === 'freighter' || overlays.back === 'freighter') this.a.freighterInterior.mount(design, 'Kapal Induk', this.freighterView());
     hud.toast(`Pesawat: ${design.name}`);
     this.persist();
   }
 
   warpTo(index) {
     const { player, hud, warpFx, sfx } = this.a;
-    if (!player.useEnergy(WARP_COST)) {
+    if (!player.useEnergy(WARP_COST * shipMod('shipEnergy', 'warp', player))) {
       hud.toast(`Energi kurang (${WARP_COST} untuk warp)`);
       this.resumeSpace();
       return;
@@ -186,12 +189,19 @@ export class Flow {
   boardFreighter() {
     const { spaceMode, freighterInterior, hud } = this.a, g = this.game;
     spaceMode.exit();
-    freighterInterior.mount(g.design, 'Kapal Induk');
+    freighterInterior.mount(g.design, 'Kapal Induk', this.freighterView());
     freighterInterior.resize(innerWidth, innerHeight);
     g.feed = null;
     hud.setTarget(null, false);
     hud.toast('Selamat datang di Kapal Induk');
     this.setMode('freighter');
+  }
+
+  // The real planets nearest to the capital ship, for its windows.
+  freighterView() {
+    const { freighter, space } = this.a, at = freighter.dock?.position;
+    const near = at ? [...space.bodies].sort((p, q) => p.pos.distanceTo(at) - q.pos.distanceTo(at)).map((b) => b.planet) : [];
+    return { near, starColor: this.game.system.star.color, style: interiorStyleOf(freighter) };
   }
 
   leaveFreighter() {

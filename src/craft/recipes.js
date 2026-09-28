@@ -2,8 +2,8 @@
 // items pays it, so biome-locked materials always have alternatives from other worlds.
 import { FLORA_MATERIALS } from '../quest/materials.js';
 
-const group = (label, any) => (n) => ({ label, any, n });
-const item = (name) => (n) => ({ label: name, any: [name], n });
+export const group = (label, any) => (n) => ({ label, any, n });
+export const item = (name) => (n) => ({ label: name, any: [name], n });
 
 const FUR = group('Bulu/Kulit', ['Bulu Lembut', 'Kulit Fauna', 'Bulu Sayap', 'Kulit Ular', 'Sisik']);
 const BONE = group('Tulang/Kitin', ['Kitin', 'Tulang Besar', 'Serpih Kubus', 'Duri Tajam', 'Tulang Tanaman', 'Sisik']);

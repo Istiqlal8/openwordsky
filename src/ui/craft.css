@@ -34,3 +34,21 @@
 .cr-btn { padding: 5px 10px; color: var(--amber); border-color: var(--amber-dim); }
 .cr-btn:disabled { color: var(--muted); border-color: var(--line); cursor: default; opacity: 0.6; }
 .cr-row:not(.is-sel) .cr-btns { display: none; }
+
+
+/* Food buff strip: bottom-left, between the vitals panel and the loot feed (pushed up while shown). */
+.buff-bar { position: absolute; left: 16px; bottom: 132px; display: flex; gap: 4px; pointer-events: none; }
+.hud:not([data-mode="space"]):not([data-mode="surface"]) .buff-bar { display: none; }
+.hud:has(.buff-bar:not(.is-hidden)) .loot-feed { bottom: 180px; }
+.buff {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 34px; padding: 4px 5px;
+  background: rgba(4, 8, 14, 0.62); border: 1px solid var(--amber-dim); color: var(--amber);
+}
+.buff-icon { font-size: 15px; line-height: 1; }
+.buff-left { font: 600 10px/1 var(--display); color: var(--text); font-variant-numeric: tabular-nums; }
+.buff.is-ending { animation: blink 0.7s ease-in-out infinite; }
+/* Narrow screens: the weapon HUD moves under the vitals, so the strip sits beside them instead. */
+@media (max-width: 760px) {
+  .buff-bar { left: calc(16px + min(220px, calc(100vw - 32px)) + 8px); bottom: 16px; }
+  .hud:has(.buff-bar:not(.is-hidden)) .loot-feed { bottom: 132px; }
+}

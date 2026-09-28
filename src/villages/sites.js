@@ -25,7 +25,8 @@ export function planSettlements(planet, h, spawn) {
 function settlementTypes(planet, rng) {
   if (planet.style === 'earth') return EARTH_ORDER.slice(0, 3 + rng.int(4));
   if (planet.gas) return [];
-  if (breathable(planet)) return Array(1 + rng.int(3)).fill('colony');
+  // Breathable worlds are busy: several colonies, a research station and a mine (50+ residents).
+  if (breathable(planet)) return ['colony', 'research', 'colony', 'colony', ...(rng.chance(0.5) ? ['colony'] : []), 'mining'];
   return planet.atmosphereDensity > 0 && rng.chance(0.25) ? ['mining'] : [];
 }
 

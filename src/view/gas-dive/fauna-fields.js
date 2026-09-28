@@ -16,7 +16,7 @@ void main() {
   vec4 mv = viewMatrix * m * vec4(position, 1.0);
   vN = normalize(mat3(viewMatrix) * mat3(m) * normal);
   vV = normalize(-mv.xyz);
-  vCol = instanceColor * exp(-pow(uDensity * -mv.z * 0.7, 2.0));
+  vCol = instanceColor * exp(-pow(uDensity * -mv.z * 0.7, 2.0)) * smoothstep(3.0, 45.0, -mv.z);
   gl_Position = projectionMatrix * mv;
 }`;
 
@@ -26,7 +26,7 @@ varying vec3 vV;
 varying vec3 vCol;
 void main() {
   float rim = 1.0 - abs(dot(normalize(vN), normalize(vV)));
-  gl_FragColor = vec4(vCol * (0.12 + pow(rim, 2.2) * 1.1), 1.0);
+  gl_FragColor = vec4(vCol * (0.05 + pow(rim, 2.4) * 1.0), 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`;
@@ -93,8 +93,20 @@ export class Frame {
   point(out, x, y, z) { return out.set(x, y, z).applyMatrix4(this.m); }
 }
 
+// Instance color also feeds a little emission so bodies never read as flat black in the murk.
+function selfLit(mat, key) {
+  const hook = mat.onBeforeCompile;
+  mat.customProgramCacheKey = () => `fauna-${key}`;
+  mat.onBeforeCompile = (sh, r) => {
+    hook?.(sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\n  totalEmissiveRadiance += vColor.rgb * 0.28;');
+  };
+  return mat;
+}
+
 function fleshMaterial() {
-  return new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, metalness: 0 });
+  return selfLit(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78, metalness: 0 }), 'flesh');
 }
 
 function rimMaterial(density) {
@@ -122,7 +134,7 @@ function mantaMaterial(time) {
       transformed.y += sin(uTime * 2.4 + ph - abs(position.x) * 1.2) * pow(abs(position.x), 1.5) * 0.42;
       transformed.y -= position.z * position.z * 0.12;`);
   };
-  return mat;
+  return selfLit(mat, 'manta');
 }
 
 // All part pools in one bundle; begin/end wraps a frame of drawing.

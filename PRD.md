@@ -97,6 +97,32 @@ or src/gameplay/world-addons.js):
   plants or contraband to planets 1–5 jumps away; hold size depends on ship class (fighter 4,
   explorer/exotic 8, hauler 14, + cargo parts); big animals need a hauler, contraband a fighter;
   distress calls to save planets (plague, pirates, sentinels, stranded colony, drought) on a timer.
+- **Achievements, onboarding, settings** (src/achieve/, src/tutorial/, src/settings/): 67 trophies in
+  seven categories (bronze/silver/gold tiers) counted from act events and the save, with an unlock
+  banner, a Nanit reward and a "Trofi" tab in the collection book (`L`); a progressive tutorial that
+  introduces one system at a time as a small hint card; a settings menu (`` ` ``) for graphics quality,
+  volumes, mouse sensitivity, invert Y, hints and key rebinding, stored in `openworldsky.settings`.
+
+Added in v1.5:
+- **Pemakan Planet** (src/devourer/): a rare galaxy-wide event. Roughly every 16–28 minutes of play
+  (first after 10) a colossal entity (~6,800 units, 20× the Kapal Induk) appears in a system a few
+  jumps away and spends 6 minutes draining one of its planets. A red pulsing marker on the galaxy
+  map (M), a banner with a live countdown and a journal card point the way. 150 allied fighters
+  (one InstancedMesh) and five capital ships fight it: shields up (six nodes), core open, then
+  enraged sweeping beams that hurt the player's ship and burn capital ships down. The player's own
+  damage is tracked separately and rewards scale with it. Win and the planet is scarred but saved;
+  lose and it is consumed for good and regenerates as a shattered husk (`log.s.devourer.eaten`).
+- **Mech transformasi** (`.`, src/mech/): the player's ship folds into a 14–21 m humanoid mecha,
+  derived from the active ship design — wings become shoulder binders, engines become backpack and
+  calf thrusters, the cockpit becomes the head and chest hatch, hull/trim/glow colours carry over,
+  and the class sets the build (fighter slim, hauler heavy, explorer sensor-headed, exotic strange
+  with a halo ring). A 1.25 s animated sequence folds ship into mech in space, in atmosphere and on
+  the ground. In space it hovers, strafes and stops dead (46 u/s cruise, 190 boosting); on a planet
+  it walks and runs with IK feet planted on the terrain, jump-jets, shakes the camera and crushes
+  what it steps on. Beam rifle (LMB), shoulder missiles (RMB) and a beam saber (middle mouse) all
+  deal damage through the existing space and surface weapon paths. It drains ship energy while
+  deployed (5/s in space, 4.2/s on foot), reuses the ship's hull/shield, and the usual death and
+  respawn flow applies.
 
 Out of scope: crafting trees, multiplayer, trading, base building.
 
@@ -123,6 +149,8 @@ Out of scope: crafting trees, multiplayer, trading, base building.
 | L | collection book | collection book |
 | O | — | cargo board |
 | Tab / I | inventory | inventory |
+| ` | settings menu | settings menu |
+| . | ship ⇄ mech | ship ⇄ mech (near the ship) |
 | Esc | release mouse | release mouse |
 
 ## 4. Tech

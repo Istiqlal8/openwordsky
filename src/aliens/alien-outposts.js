@@ -9,7 +9,8 @@ import { AlienResident } from './alien-resident.js';
 import { BUILDING, outpostMats } from './outpost-buildings.js';
 import { OutpostBeacon, buildStall } from './outpost-beacon.js';
 import { hasOutpost, raceFor, alienName, greetLine, loreLine } from './races.js';
-import { createVendorState, tradeWith } from './alien-trade.js';
+import { isTradeWorld } from '../trade/trade-worlds.js';
+import { vendorShop } from '../trade/shops.js';
 
 const SALT = 0xa1e5;
 const TALK_RANGE = 8, TRADE_RANGE = 5;
@@ -29,7 +30,7 @@ export class AlienOutposts {
 
   mount(planet) {
     this.dispose();
-    if (!hasOutpost(planet)) return;
+    if (!hasOutpost(planet) || isTradeWorld(planet)) return; // trade worlds host a whole market city instead
     const rng = new Rng(hash32(planet.seed, SALT));
     this.planet = planet;
     const center = this.findSite(rng, 24);
@@ -126,7 +127,7 @@ export class AlienOutposts {
     const seed = hash32(this.planet.seed, SALT, 0xbe7d);
     const v = this.addResident(seed, true, { x: this.center.x + x * (1 - behind), z: this.center.z + z * (1 - behind) });
     v.yaw = stall.rotation.y;
-    this.vendorState = createVendorState(v.name, this.race, seed);
+    this.shop = vendorShop(seed, this.race, v.name);
   }
 
   addResident(seed, vendor, at) {
@@ -181,15 +182,21 @@ export class AlienOutposts {
     return best ? { r: best, d: bestD } : null;
   }
 
-  // T near an alien: trade with the vendor, or hear a resident's story -> { title, text } | null.
+  // T near an alien -> vendor: { shop: id, title, text } (open the Market with getShop(id));
+  // resident: { title, text } story | null.
   interact(pos) {
     const best = this.closest(pos);
     if (!best || best.d > TRADE_RANGE) return null;
-    if (best.r.vendor) return tradeWith(this.vendorState, this.player);
+    if (best.r.vendor) {
+      return { shop: this.shop.id, title: `${best.r.name} · ${this.race.name}`,
+        text: `${greetLine(this.race, new Rng(hash32(best.r.seed, best.r.greets++)))} Lihat dagangan kami.` };
+    }
     const rng = new Rng(hash32(best.r.seed, 0x10e, best.r.greets++));
     return { title: `${best.r.name} · ${this.race.name}`,
       text: `"${loreLine(this.race, rng)}" Pedagang kami menunggu di kios dekat suar.` };
   }
+
+  getShop(id) { return this.shop?.id === id ? this.shop : null; }
 
   // Minimap markers for the residents (array and entries reused).
   list() {
@@ -209,7 +216,7 @@ export class AlienOutposts {
     this.mats?.all.forEach((m) => m.dispose());
     this.kit?.dispose();
     this.releaseZone();
-    Object.assign(this, { beacon: null, group: null, mats: null, kit: null, site: null, planet: null, vendorState: null });
+    Object.assign(this, { beacon: null, group: null, mats: null, kit: null, site: null, planet: null, shop: null });
   }
 
   releaseZone() {

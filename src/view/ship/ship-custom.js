@@ -3,6 +3,7 @@
 import { hash32 } from '../../core/rng.js';
 import { clampStat, engineMounts } from './ship-design.js';
 import { normalizeSpec, specFromDesign, randomSpec, DEFAULT_SPEC } from './ship-custom-spec.js';
+import { customResist } from '../../ship-systems/ship-resist.js';
 
 export { normalizeSpec, specFromDesign, randomSpec, DEFAULT_SPEC };
 
@@ -19,8 +20,10 @@ const CLASS_BIAS = {
 const hexNum = (css) => parseInt(css.slice(1), 16);
 
 // Stable 32-bit id for a spec (so the same spec always gets the same seed).
+// Weapon and armor are left out so ships saved before those options keep their seed.
 function specSeed(spec) {
-  const json = JSON.stringify(spec);
+  const { weapon, armor, ...shape } = spec;
+  const json = JSON.stringify(shape);
   const codes = [];
   for (let i = 0; i < json.length; i++) codes.push(json.charCodeAt(i));
   return hash32(0xc057, ...codes);
@@ -89,9 +92,10 @@ export function customStats(s, p) {
 export function customDesign(spec) {
   const s = normalizeSpec(spec);
   const parts = buildParts(s);
+  const stats = customStats(s, parts);
   return {
     seed: specSeed(s), name: s.name, cls: s.cls, label: CLASS_LABELS[s.cls],
-    stats: customStats(s, parts),
+    stats: { ...stats, ...customResist(s.cls, s.armor, stats.shield) }, weapon: s.weapon,
     palette: { hull: hexNum(s.colors.hull), trim: hexNum(s.colors.trim), glow: hexNum(s.colors.glow) },
     parts, custom: true, spec: s,
   };

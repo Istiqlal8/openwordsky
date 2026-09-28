@@ -3,8 +3,12 @@ import * as THREE from 'three';
 import { el } from './dom.js';
 import { shipDesign, candidateSeeds } from '../view/ship/ship-design.js';
 import { buildShip } from '../view/ship/ship-model.js';
+import { shipWeaponLabel } from '../ship-systems/ship-weapons.js';
+import { RESIST_KEYS, RESIST_LABELS, resistOf } from '../ship-systems/ship-resist.js';
 
-const STATS = [['speed', 'Kecepatan'], ['agility', 'Kelincahan'], ['shield', 'Perisai'], ['damage', 'Daya Tembak']];
+const STATS = [['speed', 'Kecepatan'], ['agility', 'Kelincahan'], ['shield', 'Perisai'], ['damage', 'Daya Tembak'],
+  ...RESIST_KEYS.map((k) => [k, RESIST_LABELS[k]])];
+const isResist = (key) => RESIST_KEYS.includes(key);
 const SPIN = 0.45;
 
 function buildStage() {
@@ -67,6 +71,7 @@ export class Hangar {
     this.clsEl = el('div', 'hangar-class');
     this.nameEl = el('div', 'hangar-name');
     this.countEl = el('div', 'hangar-count');
+    this.weaponEl = el('div', 'hangar-count');
     const bars = el('div', 'hangar-stats');
     this.bars = {};
     for (const [key, label] of STATS) {
@@ -82,7 +87,7 @@ export class Hangar {
     close.onclick = () => this.close();
     const actions = el('div', 'hangar-actions');
     actions.append(pick, close);
-    info.append(this.clsEl, this.nameEl, this.countEl, bars, actions);
+    info.append(this.clsEl, this.nameEl, this.countEl, this.weaponEl, bars, actions);
     return info;
   }
 
@@ -124,8 +129,9 @@ export class Hangar {
     this.clsEl.textContent = d.label;
     this.nameEl.textContent = d.name;
     this.countEl.textContent = `${this.index + 1} / ${this.designs.length}`;
+    this.weaponEl.textContent = `Senjata: ${shipWeaponLabel(d)}`;
     for (const [key] of STATS) {
-      const pct = Math.max(0.05, Math.min(1, (d.stats[key] - 0.6) / 0.8));
+      const pct = Math.max(0.05, Math.min(1, isResist(key) ? resistOf(d, key) / 0.9 : (d.stats[key] - 0.6) / 0.8));
       this.bars[key].style.width = `${Math.round(pct * 100)}%`;
     }
   }

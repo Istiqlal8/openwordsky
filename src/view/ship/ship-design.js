@@ -2,6 +2,8 @@
 import { Rng, hash32 } from '../../core/rng.js';
 import { hsl } from '../../core/color.js';
 import { word } from '../../gen/names.js';
+import { rollWeapon } from '../../ship-systems/ship-weapons.js';
+import { rollResist } from '../../ship-systems/ship-resist.js';
 
 const CLASSES = [
   { w: 35, cls: 'fighter', label: 'Petarung', stats: { speed: 1.25, agility: 1.3, shield: 0.85, damage: 1.2, regen: 0.9 } },
@@ -109,9 +111,10 @@ export function shipDesign(seed) {
   const name = rng.chance(0.6) ? `${word(rng)} ${rng.pick(SUFFIX)}` : word(rng);
   return {
     seed, name, cls: kind.cls, label: kind.label,
-    stats: rollStats(rng, kind.stats),
+    stats: { ...rollStats(rng, kind.stats), ...rollResist(seed, kind.cls) },
     palette: rollPalette(rng, kind.cls),
     parts: PARTS[kind.cls](rng),
+    weapon: rollWeapon(seed, kind.cls),
   };
 }
 

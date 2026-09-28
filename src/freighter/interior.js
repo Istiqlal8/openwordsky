@@ -1,31 +1,38 @@
 // FreighterInterior: the walkable inside of the "Kapal Induk" (separate scene, 1 unit = 1 m).
-// Hangar bay with the player's parked ship, corridor, bridge, quarters and workshop.
+// Each exterior archetype has its own layout plan (interior/plans.js), palette and signature
+// props; every plan offers the parked ship, the space door, the five stations and crew.
 // update() returns { exit, prompt, action }: T at a terminal gives an action, E at the ship
 // launches it out of the space door and then reports exit = true.
 import * as THREE from 'three';
 import { Rng, hash32 } from '../core/rng.js';
 import { disposeTree } from './kit.js';
 import { interiorMaterials } from './interior-mats.js';
-import { buildShell, WALK } from './interior-shell.js';
-import { buildHangar, PLAYER_PAD } from './interior-hangar.js';
-import { buildRooms } from './interior-rooms.js';
+import { buildShell } from './interior-shell.js';
+import { parkShips, doorFrame } from './interior-hangar.js';
+import { stations, light } from './interior-rooms.js';
 import { buildOutside } from './interior-outside.js';
-import { sign } from './interior-props.js';
+import { sign, ceilingLights } from './interior-props.js';
 import { InteriorLife } from './interior-life.js';
 import { Walkable } from './walkable.js';
 import { Walker } from './walker.js';
-import { Launch } from './launch.js';
+import { Launch } from './interior/launch.js';
+import { paletteOf } from './interior/palette.js';
+import { planOf } from './interior/plans.js';
+import { mergeStatic } from './interior/merge.js';
 
 const USE_RANGE = 2.2;   // metres from a terminal
 const BOARD_RANGE = 2;   // metres from the ship's footprint
 
-function hangarLights(g) {
-  g.add(new THREE.HemisphereLight(0xc8dcff, 0x2a2e36, 0.9), new THREE.AmbientLight(0x404858, 0.5));
-  for (const [hex, i, x, y, z] of [[0xbfe6ff, 60, -15, 12, -2], [0xbfe6ff, 60, 15, 12, -2], [0xffd09a, 40, 0, 9, 7]]) {
-    const l = new THREE.PointLight(hex, i, 40, 1.2);
-    l.position.set(x, y, z);
-    g.add(l);
-  }
+// Plan lights: [[hex | palette key, intensity, x, y, z, range]] plus the palette's sky fill.
+function addLights(g, plan, pal) {
+  const [hemi, amb] = plan.ambient ?? [0.9, 0.5];
+  g.add(new THREE.HemisphereLight(pal.sky, pal.ground, hemi), new THREE.AmbientLight(pal.ground, amb));
+  for (const [c, i, x, y, z, range] of plan.lights) light(g, typeof c === 'string' ? pal[c] : c, i, x, y, z, range);
+}
+
+function dressing(ctx, plan) {
+  for (const [text, x, y, z, rotY, width, color] of plan.signs) sign(ctx, ctx.g, text, x, y, z, rotY, width, color ?? ctx.pal.sign);
+  for (const l of plan.lamps ?? []) ceilingLights(ctx, ctx.g, l.spots, l.y, l.w, l.d, ctx.mats[l.mat ?? 'cool']);
 }
 
 export class FreighterInterior {
@@ -41,27 +48,41 @@ export class FreighterInterior {
   get camera() { return this.cam; }
 
   // design: the player's ship design; name: freighter name (signage + outside view seed).
-  mount(design, name = 'Kapal Induk') {
+  // view = { near: [planet, planet], starColor, style? } — the real system outside the windows.
+  // style = { archetype, name, accent, hull, glow } from interiorStyleOf(freighter).
+  mount(design, name = 'Kapal Induk', view = {}, style = view.style ?? {}) {
     this.dispose();
+    const S = { ...style, name: style.name ?? name }, pal = paletteOf(S);
+    this.scene.background.setHex(pal.bg);
     this.root = new THREE.Group();
     this.scene.add(this.root);
-    const { mats, textures } = interiorMaterials();
-    const ctx = this.ctx = { mats, textures, blocks: [], terminals: [] };
+    const g = new THREE.Group();
+    this.root.add(g);
+    const { mats, textures } = interiorMaterials(pal);
     const rng = new Rng(hash32(design.seed ?? 1, 0xf7e1));
-    this.root.add(buildShell(mats));
-    const hangar = buildHangar(ctx, this.root, design, rng);
-    const rooms = buildRooms(ctx, this.root);
-    this.outside = buildOutside(this.root, name, textures);
-    sign(ctx, this.root, name.toUpperCase(), 0, 14.4, -14.6, 0, 9);
-    hangarLights(this.root);
-    this.ship = hangar.playerShip;
-    this.ships = [hangar.playerShip, ...hangar.npcShips];
-    this.walker = new Walker(this.cam, new Walkable(WALK, ctx.blocks));
+    const ctx = this.ctx = { mats, textures, blocks: [], terminals: [], g, dyn: this.root, pal, S };
+    const plan = this.plan = planOf(pal.id)(S, rng);
+    buildShell(ctx, plan);
+    const { playerShip, npcShips } = parkShips(ctx, plan.pads, design, rng);
+    for (const D of plan.doors) doorFrame(ctx, D);
+    const animators = [stations(ctx, plan.stations), ...(plan.decorate?.(ctx, rng) ?? [])];
+    dressing(ctx, plan);
+    addLights(this.root, plan, pal);
+    mergeStatic(g);
+    this.outside = buildOutside(this.root, S.name, textures, view.near, view.starColor, plan.doors);
+    this.outside.light.intensity *= plan.sun ?? 1; // dim the star where the mood is its own light
+    this.enter(playerShip, npcShips, plan, animators);
+  }
+
+  enter(ship, npcShips, plan, animators) {
+    this.ship = ship;
+    this.ships = [ship, ...npcShips];
+    this.walker = new Walker(this.cam, new Walkable(plan.walk, this.ctx.blocks));
     this.root.add(this.walker.avatar.group);
-    this.walker.place(PLAYER_PAD.x, this.ship.box.max.z + 2.2, 0);
-    this.life = new InteriorLife(this.root, mats, this.ships.map((s) => s.group.position));
-    Object.assign(this.life, { crane: hangar.crane, holo: rooms.holo });
-    this.launch = new Launch(this.ship, this.cam);
+    const p = plan.pads.player;
+    this.walker.place(p.x, ship.box.max.z + 2.2, 0);
+    this.life = new InteriorLife(this.root, this.ctx.mats, this.ships.map((s) => s.group.position), plan, animators);
+    this.launch = new Launch(ship, this.cam, plan.door);
   }
 
   update(dt, input) {
@@ -93,9 +114,10 @@ export class FreighterInterior {
     if (input.pressed('KeyT')) r.action = t.action;
   }
 
-  // Floor distance from the player to the parked ship's footprint.
+  // Floor distance from the player to the parked ship's footprint (same deck only).
   shipDistance() {
     const b = this.ship.box, f = this.walker.feet;
+    if (Math.abs(f.y - (this.plan.pads.player.y ?? 0)) > 1.5) return Infinity;
     const dx = Math.max(b.min.x - f.x, 0, f.x - b.max.x), dz = Math.max(b.min.z - f.z, 0, f.z - b.max.z);
     return Math.hypot(dx, dz);
   }
@@ -104,6 +126,7 @@ export class FreighterInterior {
     const f = this.walker.feet;
     let best = null, bestD = USE_RANGE;
     for (const t of this.ctx.terminals) {
+      if (Math.abs((t.y ?? 0) - f.y) > 1.5) continue;
       const d = Math.hypot(t.x - f.x, t.z - f.z);
       if (d < bestD) { best = t; bestD = d; }
     }

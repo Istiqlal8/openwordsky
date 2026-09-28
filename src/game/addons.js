@@ -8,9 +8,25 @@ import { GuideAddon } from '../guide/guide-addon.js';
 import { QuestExtras } from './quest-extras.js';
 import { CraftAddon } from '../craft/craft-addon.js';
 import { MissionsAddon } from '../missions/missions-addon.js';
+import { FishingAddon } from '../fishing/fishing-addon.js';
+import { FleetAddon } from '../fleet/fleet-addon.js';
+import { BuildAddon } from '../build/build-addon.js';
+import { LegendMeta } from '../legend/legend-meta.js';
+import { MetaAddon } from '../settings/meta-addon.js';
+import { DevourerAddon } from '../devourer/devourer-addon.js';
+import { RaidMeta } from '../raid/raid-meta.js';
+import { MechAddon } from '../mech/mech-addon.js';
 export const ADDONS = [
   MissionsAddon,
   GuideAddon,
   QuestExtras,
   CraftAddon,
+  FishingAddon,
+  FleetAddon,
+  BuildAddon,
+  MetaAddon,
+  LegendMeta,
+  DevourerAddon,
+  RaidMeta,
+  MechAddon,
 ];

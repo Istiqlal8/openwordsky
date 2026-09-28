@@ -3,17 +3,16 @@
 import * as THREE from 'three';
 import { isDryFlat } from '../npc/terrain-spots.js';
 
-const SPEED = { vorran: 1.1, ksirr: 2.1, blubo: 0.9, mekanid: 1.4, aquor: 1.3 };
 const GREET_RANGE = 8, LEAVE_RANGE = 11;
 const rand = (a, b) => a + Math.random() * (b - a);
 
 export class AlienResident {
-  // info: { id, name, body: AlienBody, home: {x, z}, radius, spots: [{x, z}], vendor, start: {x, z}, yaw }
+  // info: { id, name, body: AlienBody, home: {x, z}, radius, spots: [{x, z}], vendor, start: {x, z}, yaw, floor? }
   constructor(scene, info) {
     Object.assign(this, info);
     this.feet = new THREE.Vector3(info.start.x, 0, info.start.z);
     this.goal = new THREE.Vector3();
-    this.speed = SPEED[info.body.race.id] ?? 1.2;
+    this.speed = info.body.race.speed ?? 1.2;
     Object.assign(this, { state: 'idle', timer: rand(0.5, 3), gesture: 'none', moving: 0, playerDist: Infinity });
     scene.add(this.body.group);
   }
@@ -30,7 +29,7 @@ export class AlienResident {
     this.moving = 0;
     this.react(player);
     this.act(dt, h, planet, player);
-    this.feet.y = h(this.feet.x, this.feet.z);
+    this.feet.y = this.floor ?? h(this.feet.x, this.feet.z); // floor: fixed standing height (shop counters)
     const g = this.body.group;
     g.position.copy(this.feet);
     g.rotation.y = this.yaw;

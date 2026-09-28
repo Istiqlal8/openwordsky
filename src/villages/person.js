@@ -9,6 +9,37 @@ const SHIRT = [0xe0463a, 0x3f8fd0, 0x3fb06a, 0xf0a030, 0xb05ad0, 0xf4f4f0, 0x2fb
 const PANTS = [0x2f3f5f, 0x4a4a4a, 0x6b5a40, 0x2a2a2a, 0x8a6a4a, 0x3a5a3a];
 const SUITS = [0xe9e4d8, 0xd8e0e8, 0xf0d8a8, 0xc8e8d0];
 const HIP = 0.88, SHOULDER = 1.44;
+const GUN = gunGeometry();
+
+// Blaster: grey body with a glowing muzzle tip, long axis along the arm (-Y).
+function gunGeometry() {
+  const kit = new GeoKit().at(0, 0, 0, 0);
+  kit.box('g', 0x3b424c, 0.08, 0.34, 0.11, 0, -0.08, 0);
+  kit.box('g', 0x5fd4ff, 0.06, 0.05, 0.06, 0, -0.27, 0);
+  kit.box('g', 0x2a2f38, 0.06, 0.07, 0.14, 0, 0.04, 0.06);
+  const geo = kit.build({ g: new THREE.MeshBasicMaterial() }).g.geometry;
+  return geo;
+}
+
+// Arm / body overlays per pose (on top of the base limb swing).
+const EXTRA = {
+  work: (p, t) => p.work(t),
+  fish: (p, t) => { p.arms[1].rotation.x = 1.3 + Math.sin(t * 0.8) * 0.05; p.arms[0].rotation.x = 0.9; },
+  wave: (p, t) => { p.arms[1].rotation.z = 2.5 + Math.sin(t * 9) * 0.35; },
+  idle: (p, t) => { p.arms[0].rotation.x = Math.sin(t * 1.3) * 0.05; },
+  talk: (p, t) => {
+    p.arms[1].rotation.set(0.5 + Math.sin(t * 3.1) * 0.4, 0, -0.25 + Math.sin(t * 1.7) * 0.2);
+    p.arms[0].rotation.set(0.25 + Math.sin(t * 2.3 + 1) * 0.25, 0, 0.15);
+    p.body.rotation.y = Math.sin(t * 0.9) * 0.12;
+  },
+  listen: (p, t) => { p.body.rotation.x = Math.max(0, Math.sin(t * 2.2)) * 0.08; p.arms[0].rotation.z = 0.2; p.arms[1].rotation.z = -0.2; },
+  aim: (p) => { p.arms[1].rotation.x = 1.55; p.arms[0].rotation.set(1.35, 0, -0.35); },
+  guard: (p, t) => { p.arms[1].rotation.set(0.7, 0, -0.35); p.arms[0].rotation.set(0.75 + Math.sin(t) * 0.03, 0, 0.45); },
+  scan: (p, t) => { p.arms[1].rotation.x = 1.25 + Math.sin(t * 2) * 0.12; },
+  ride: (p, t) => { p.arms[0].rotation.x = p.arms[1].rotation.x = 0.75 + Math.sin(t * 4) * 0.05; },
+  cheer: (p, t) => { p.arms[0].rotation.z = -2.6 - Math.sin(t * 10) * 0.2; p.arms[1].rotation.z = 2.6 + Math.sin(t * 10) * 0.2; },
+  lie: (p) => { p.arms[0].rotation.z = -0.5; p.arms[1].rotation.z = 0.5; },
+};
 
 // Clothing and headwear for a role ('farmer' | 'fisher' | 'scientist' | 'colonist' | 'miner' | ...).
 export function randomLook(rng, role, female) {
@@ -77,6 +108,7 @@ export class Person {
     bodyParts(kit, look);
     limbParts(kit, look);
     const m = kit.build({ b: mat, a: mat, r: mat, l: mat });
+    this.mat = mat;
     this.geos = [m.b.geometry, m.a.geometry, m.r.geometry, m.l.geometry];
     this.body = new THREE.Group();
     this.arms = [pivot(m.a, -0.29, SHOULDER), pivot(m.r, 0.29, SHOULDER)];
@@ -87,19 +119,20 @@ export class Person {
     this.group.scale.setScalar(scale);
   }
 
-  // kind: 'walk' | 'idle' | 'work' | 'sit' | 'fish' | 'wave'; t: seconds.
+  // kind: 'walk' | 'run' | 'idle' | 'work' | 'sit' | 'fish' | 'wave' | 'talk' | 'aim' | 'guard' | 'scan'
+  //       | 'ride' | 'lie' | 'kneel' | 'cheer'; t: seconds.
   pose(kind, t) {
-    const [la, ra] = this.arms, [ll, rl] = this.legs, swing = kind === 'walk' ? Math.sin(t * 7) * 0.6 : 0;
-    ll.rotation.x = kind === 'sit' ? 1.45 : swing;
-    rl.rotation.x = kind === 'sit' ? 1.45 : -swing;
+    const [la, ra] = this.arms, [ll, rl] = this.legs, run = kind === 'run';
+    const swing = kind === 'walk' || run ? Math.sin(t * (run ? 11 : 7)) * (run ? 0.9 : 0.6) : 0;
+    const bent = kind === 'sit' ? 1.45 : kind === 'ride' ? 0.5 : kind === 'kneel' ? 1.2 : 0;
+    ll.rotation.set(bent || swing, 0, kind === 'ride' ? -0.38 : 0);
+    rl.rotation.set(bent || -swing, 0, kind === 'ride' ? 0.38 : 0);
     la.rotation.set(-swing * 0.8, 0, 0);
     ra.rotation.set(swing * 0.8, 0, 0);
-    this.body.position.y = kind === 'sit' ? -0.42 : 0;
-    this.body.rotation.x = 0;
-    if (kind === 'work') this.work(t);
-    else if (kind === 'fish') { ra.rotation.x = 1.3 + Math.sin(t * 0.8) * 0.05; la.rotation.x = 0.9; }
-    else if (kind === 'wave') { ra.rotation.z = 2.5 + Math.sin(t * 9) * 0.35; }
-    else if (kind === 'idle') { la.rotation.x = Math.sin(t * 1.3) * 0.05; }
+    this.body.position.set(0, kind === 'sit' ? -0.42 : kind === 'lie' ? 0.14 : kind === 'kneel' ? -0.3 : 0, 0);
+    this.body.rotation.set(run ? 0.18 : kind === 'lie' ? -1.5 : kind === 'kneel' ? 0.3 : 0, 0, 0);
+    const extra = EXTRA[kind];
+    if (extra) extra(this, t);
   }
 
   // Hoeing / harvesting: bend forward and swing both arms.
@@ -107,6 +140,16 @@ export class Person {
     const s = Math.sin(t * 3);
     this.body.rotation.x = 0.25 + s * 0.08;
     this.arms[0].rotation.x = this.arms[1].rotation.x = 0.9 + s * 0.5;
+  }
+
+  // A small blaster in the right hand (shared geometry; material from the person).
+  holdGun(on = true) {
+    if (on && !this.gun) {
+      this.gun = new THREE.Mesh(GUN, this.mat);
+      this.gun.position.set(0, -0.72, -0.06);
+      this.arms[1].add(this.gun);
+    }
+    if (this.gun) this.gun.visible = on;
   }
 
   dispose() {

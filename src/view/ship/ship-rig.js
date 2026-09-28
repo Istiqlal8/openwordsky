@@ -1,6 +1,7 @@
 // Player ship in space: owns the model and drives the camera (chase or cockpit), FOV kick and shake.
 import * as THREE from 'three';
 import { buildShip } from './ship-model.js';
+import { ShipDamage } from './ship-damage.js';
 import { BASE_SPEED, BOOST_SPEED } from './ship-flight.js';
 
 const SCALE = 0.14;            // model meters -> space-view units (planets are 2.5..7 units)
@@ -37,6 +38,14 @@ export class ShipRig {
     this.model.setLegs(false);
     this.model.group.visible = this.mode === 'chase';
     this.ship.add(this.model.group);
+    this.damage?.dispose();
+    // Attached to the unscaled ship so the smoke reads at the space model's size.
+    this.damage = new ShipDamage(this.ship, (this.model.length ?? 8) * SCALE);
+  }
+
+  // hull 0..100 from PlayerState; smoke/fire show the ship taking a beating.
+  setHull(hull) {
+    this.hull = hull;
   }
 
   toggleMode() {
@@ -57,6 +66,7 @@ export class ShipRig {
   update(dt, throttle, speed) {
     this.glow += (Math.max(throttle, Math.min(1, speed / BOOST_SPEED)) - this.glow) * (1 - Math.exp(-6 * dt));
     this.model?.setThrust(this.glow);
+    this.damage?.update(dt, this.hull ?? 100);
     this.camQ.slerp(this.ship.quaternion, 1 - Math.exp(-9 * dt));
     this.follow(dt, speed);
     this.updateFov(dt, speed);
@@ -100,6 +110,8 @@ export class ShipRig {
   }
 
   disposeModel() {
+    this.damage?.dispose();
+    this.damage = null;
     if (!this.model) return;
     this.ship.remove(this.model.group);
     this.model.dispose();

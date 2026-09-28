@@ -7,10 +7,11 @@ import * as THREE from 'three';
 import { Rng } from '../core/rng.js';
 import { ModelGroup } from '../view/life/models/model-group.js';
 import { moveBird } from '../view/life/models/megafauna-moves.js';
-import { moveGrazer, moveHunter, moveSwimmer, spotNear } from './earth-moves.js';
+import { moveGrazer, moveHunter, moveSwimmer, moveOwned, retreatHunter, spotNear } from './earth-moves.js';
 import { earthBiome } from './earth-biome.js';
 import { EARTH_SEA } from './earth-terrain.js';
 import { EarthCritters } from './earth-critters.js';
+import { EXTRA_SPECS, populateExtra } from '../life-sim/earth-kinds.js';
 
 // height: m (top of the model); far: draw distance; radius: hit sphere / height.
 const SPECS = {
@@ -22,8 +23,9 @@ const SPECS = {
   triceratops: { model: 'triceratops', name: 'Triceratops', height: [5, 6], speed: 2.2, flee: 7, hp: 260, radius: 0.55, far: 800, tint: 0x7a6a4a },
   lizard: { model: 'lizard', name: 'Biawak', height: [0.7, 0.9], speed: 1, chase: 4, sight: 12, bite: 6, hp: 50, radius: 1.1, far: 250, tint: 0x6a6a3a },
   whale: { model: 'whale', name: 'Paus Bungkuk', height: [1, 1], speed: 3.2, hp: 400, radius: 0.18, far: 900, tint: 0x3a4a5a, length: [12, 15] },
+  ...EXTRA_SPECS,
 };
-const BUDGET = 24; // skinned models drawn per frame (nearest first)
+const BUDGET = 36; // skinned models drawn per frame (nearest first)
 
 export class EarthFauna extends ModelGroup {
   constructor(scene, planet, heightFn, origin) {
@@ -54,7 +56,11 @@ export class EarthFauna extends ModelGroup {
   }
 
   populate() {
-    for (const [r0, r1, n] of [[90, 220, 5], [250, 520, 6], [400, 800, 4]]) this.addHerd('deer', ['grass', 'forest'], r0, r1, n, 45);
+    // Plenty of wildlife in sight of the home base, thinning out further away.
+    for (const [r0, r1, n] of [[35, 110, 6], [70, 180, 7], [120, 260, 6], [250, 520, 6], [400, 800, 4]]) {
+      this.addHerd('deer', ['grass', 'forest'], r0, r1, n, 45);
+    }
+    this.addFlock(4);
     this.addFlock(3);
     const plains = this.region(['grass'], 700, 1300);
     if (plains) this.addJurassic(plains);
@@ -62,6 +68,7 @@ export class EarthFauna extends ModelGroup {
     if (desert) for (let i = 0; i < 4; i++) this.addHunter('lizard', desert, 40, this.rng.chance(0.5));
     const sea = this.region(['water'], 150, 900);
     if (sea) for (let i = 0; i < 2; i++) this.addWhale(sea);
+    populateExtra(this);
   }
 
   addJurassic(home) {
@@ -87,20 +94,31 @@ export class EarthFauna extends ModelGroup {
     this.add(kind, spotNear(this.rng, home, 0, 20, this.land) ?? home.clone(), { home, range, hostile, biteCd: 0, move: 'hunt' });
   }
 
-  addFlock(size) {
-    const flock = { center: this.origin.clone().add(new THREE.Vector3(60, 0, -40)) };
+  addFlock(size, kind = 'eagle') {
+    const off = kind === 'eagle' ? new THREE.Vector3(60, 0, -40) : new THREE.Vector3(this.rng.range(-400, 400), 0, this.rng.range(-400, 400));
+    const flock = { center: this.origin.clone().add(off) };
     const dir = this.rng.chance(0.5) ? 1 : -1;
     for (let i = 0; i < size; i++) {
-      this.add('eagle', flock.center.clone(), { flock, dir, move: 'fly', altitude: this.rng.range(45, 70), angle: this.rng.range(0, 6.3),
-        orbit: this.rng.range(25, 45), waterY: EARTH_SEA, type: { speed: SPECS.eagle.speed } });
+      this.add(kind, flock.center.clone(), { flock, dir, move: 'fly', altitude: this.rng.range(35, 70), angle: this.rng.range(0, 6.3),
+        orbit: this.rng.range(25, 45), waterY: EARTH_SEA, type: { speed: SPECS[kind].speed } });
     }
   }
 
-  addWhale(home) {
+  addWhale(home, kind = 'whale') {
     const deep = (x, z) => this.h(x, z) < EARTH_SEA - 12;
-    const w = this.add('whale', spotNear(this.rng, home, 0, 120, deep) ?? home.clone(), { home, range: 260, move: 'swim', t: this.rng.range(0, 20) });
-    w.length = this.rng.range(...SPECS.whale.length);
+    const w = this.add(kind, spotNear(this.rng, home, 0, 120, deep) ?? home.clone(), { home, range: 260, move: 'swim', t: this.rng.range(0, 20) });
+    w.length = this.rng.range(...SPECS[kind].length);
   }
+
+  // Settlement riding deer (role 'mount'), driven by owner.drive() -> animal | null.
+  adopt(role, pos, owner) {
+    if (role !== 'mount') return null;
+    const at = new THREE.Vector3(pos.x, 0, pos.z);
+    return this.add('mount', at, { move: 'owned', owner, home: at.clone() });
+  }
+
+  // Hit by an NPC's blaster: badly hurt hunters run off.
+  npcHit(a, from, left = 0) { if (a.move === 'hunt' && left < 0.45) retreatHunter(a, from); }
 
   add(kind, pos, extra) {
     const spec = SPECS[kind], r = this.rng, height = r.range(...spec.height);
@@ -116,7 +134,7 @@ export class EarthFauna extends ModelGroup {
   // Whales: scale the model by body length instead of height.
   swapIn(a) {
     const fresh = !a.inst && super.swapIn(a);
-    if (fresh && a.kind === 'whale') {
+    if (fresh && a.spec.model === 'whale') {
       const s = a.length / a.inst.template.length;
       a.inst.scene.scale.setScalar(s);
       a.radius = s * 0.5;
@@ -131,6 +149,7 @@ export class EarthFauna extends ModelGroup {
     if (a.move === 'graze') return moveGrazer(a, dt, player, this.land);
     if (a.move === 'hunt') return moveHunter(a, dt, player, this.land, this);
     if (a.move === 'swim') return moveSwimmer(a, dt, (x, z) => this.h(x, z) < EARTH_SEA - 12);
+    if (a.move === 'owned') return moveOwned(a, dt, this.land);
     return moveBird(a, dt, player, this.h);
   }
 
@@ -146,8 +165,11 @@ export class EarthFauna extends ModelGroup {
     for (const a of this.list) a.dist = a.root.position.distanceTo(player);
     this.list.sort((p, q) => p.dist - q.dist);
     let left = BUDGET;
-    for (const a of this.list) {
-      const speed = this.move(a, dt, player);
+    this.tick = (this.tick ?? 0) + 1;
+    for (let i = 0; i < this.list.length; i++) {
+      const a = this.list[i], far = a.dist > a.spec.far * 1.2 && !a.owner;
+      if (far && (this.tick + i) % 4) { a.root.visible = false; continue; } // out of sight: think 4x less often
+      const speed = this.move(a, far ? dt * 4 : dt, player);
       a.root.position.set(a.pos.x, this.y(a), a.pos.z);
       if (this.show(a, dt, left > 0, speed)) left--;
     }
@@ -165,7 +187,7 @@ export class EarthFauna extends ModelGroup {
   }
 
   provoke(a) {
-    if (a.critter) return;
+    if (a.critter || a.owner) return;
     if (a.herd) a.herd.panic = 8;
     if (a.move === 'hunt') { a.hostile = true; this.calm = 0; }
   }

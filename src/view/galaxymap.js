@@ -6,6 +6,7 @@ import {
   buildHaze, drawBackground, drawSystems, drawVisited, drawCurrent,
   drawMarker, drawRoute, drawHome, pickSystem, toWorld,
 } from '../ui/galaxy-render.js';
+import { drawEventMarker } from '../devourer/map-marker.js';
 
 const START_SCALE = 1.6;
 const MIN_SCALE = 0.25;
@@ -133,6 +134,7 @@ export class GalaxyMap {
     }
     drawCurrent(ctx, cam, this.current, time);
     drawHome(ctx, cam, this.systems[HOME]);
+    drawEventMarker(ctx, cam, systems, time);
   }
 
   planetsFor(index) {

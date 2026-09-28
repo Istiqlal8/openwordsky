@@ -5,6 +5,7 @@ import { systemName } from './names.js';
 import { makePlanet } from './planet.js';
 import { isGolden, goldenTouch } from '../surprise/golden.js';
 import { isSolarSystem, toSolarSystem, solarPlanet } from './solar-system.js';
+import { husk } from '../devourer/husk.js';
 
 export { isSolarSystem } from './solar-system.js';
 
@@ -64,7 +65,7 @@ export function planetsOf(galaxySeed, system) {
   const planets = [];
   const solar = isSolarSystem(system.index);
   for (let i = 0; i < system.planetCount; i++) {
-    planets.push(solar ? solarPlanet(galaxySeed, system, i) : withGold({ ...makePlanet(galaxySeed, system, i), style: null }));
+    planets.push(husk(solar ? solarPlanet(galaxySeed, system, i) : withGold({ ...makePlanet(galaxySeed, system, i), style: null })));
   }
   return planets;
 }

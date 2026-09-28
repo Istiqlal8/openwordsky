@@ -95,6 +95,38 @@ function withLife(rng, b, terrain) {
   return { terrain, ...makeLife(rng, b, terrain.hasWater) };
 }
 
+// Outer worlds are often gas giants: no landing, but you can dive into the clouds.
+function isGasGiant(seed, index) {
+  if (index < 2) return false; // inner orbits stay rocky
+  return new Rng(hash32(seed, 0x6a5)).chance(index >= 4 ? 0.45 : 0.28);
+}
+
+const GAS_RES = ['Hidrogen', 'Helium', 'Metana', 'Ammonia', 'Belerang', 'Tritium'];
+
+function gasGiant(p, rng) {
+  const ice = rng.chance(0.4);
+  const h = rng.next();
+  Object.assign(p, {
+    gas: true, style: null,
+    biome: { id: 'gas', label: ice ? 'Raksasa es' : 'Raksasa gas' },
+    radius: rng.range(ice ? 110 : 160, ice ? 190 : 360),
+    palette: { ...p.palette, ground1: hsl(h, ice ? 0.45 : 0.35, ice ? 0.5 : 0.55),
+      ground2: hsl(h + 0.04, 0.4, 0.38), sky: hsl(h, 0.4, 0.62), fog: hsl(h, 0.3, 0.55) },
+    temperature: ice ? -Math.round(rng.range(150, 210)) : -Math.round(rng.range(90, 150)),
+    atmosphere: 'Padat', atmosphereDensity: 1, gravity: +rng.range(9, 26).toFixed(1),
+    weather: rng.pick(['Badai abadi', 'Angin supersonik', 'Awan tebal', 'Badai petir']),
+    hazard: 'Tekanan ekstrem', radiation: rng.int(4), toxicity: rng.int(3),
+    flora: { density: 0, kind: 'tree', scale: 1 },
+    fauna: { count: 0, kind: 'floater', size: 1, dinos: 0, dinoKind: 'rex' },
+    sea: { count: 0, kind: 'fish' },
+    terrain: { ...p.terrain, hasWater: false, amp: 10, style: 'flat' },
+    resources: [...new Set(rng.take(GAS_RES, 3))],
+    moons: 2 + rng.int(5), rings: rng.chance(0.45),
+    species: { fauna: [], flora: [] },
+  });
+  return p;
+}
+
 export function makePlanet(galaxySeed, system, index) {
   const seed = hash32(galaxySeed, system.index * 131 + 7, index * 17 + 3);
   const rng = new Rng(seed);
@@ -113,6 +145,7 @@ export function makePlanet(galaxySeed, system, index) {
     resources: [...new Set(resources)],
     moons: rng.int(4), rings: rng.chance(0.22),
   };
+  if (isGasGiant(seed, index)) return gasGiant(planet, new Rng(hash32(seed, 0x9a5)));
   planet.species = makeSpecies(planet);
   return planet;
 }

@@ -1,5 +1,6 @@
 // AlienShips: 1-4 alien vessels in ~50% of systems (always some where a planet hosts an
-// outpost). Some hover around their outpost planet, others cruise between planets.
+// outpost), plus a swarm of merchants around trade worlds. Some hover around their planet,
+// others cruise between planets.
 // Spawn choices come from the system seed; the flight itself uses Math.random.
 import * as THREE from 'three';
 import { Rng, hash32 } from '../core/rng.js';
@@ -7,8 +8,10 @@ import { glowTexture } from '../assets/textures.js';
 import { GeoKit } from './body-kit.js';
 import { buildAlienShip } from './alien-ship-models.js';
 import { RACES, hasOutpost, raceFor, alienName } from './races.js';
+import { isTradeWorld } from '../trade/trade-worlds.js';
 
 const SALT = 0xa15c;
+const TRADERS = 7;             // extra merchant ships around each trade world
 const SCALE = 0.14;             // same metres -> space units factor as the player's ship
 const BEACON = 0.06;            // screen-space size of the running light
 const NEAR_FADE = [8, 30], FAR_FADE = [4500, 9000];
@@ -37,18 +40,31 @@ export class AlienShips {
     const homes = bodies.filter((b) => hasOutpost(b.planet));
     let count = rng.chance(0.5) ? 1 + rng.int(4) : 0;
     if (homes.length && !count) count = 1 + rng.int(2);
-    if (!count || !bodies.length) return;
+    const markets = bodies.filter((b) => isTradeWorld(b.planet));
+    if ((!count && !markets.length) || !bodies.length) return;
     this.kit = new GeoKit();
     this.space.scene.add(this.group);
     for (let i = 0; i < count; i++) {
       const home = i < homes.length && (i === 0 || rng.chance(0.6)) ? homes[i] : null;
       this.spawn(hash32(system.seed, SALT, i), home, bodies, rng);
     }
+    markets.forEach((m, k) => this.spawnTraders(system, m, k, bodies, rng));
   }
 
-  spawn(seed, home, bodies, rng) {
+  // Trade world traffic: merchants of every race circling the planet or flying in from elsewhere.
+  spawnTraders(system, market, k, bodies, rng) {
+    for (let i = 0; i < TRADERS; i++) {
+      const seed = hash32(system.seed, SALT, 0x7a0 + k * 16 + i);
+      const ship = this.spawn(seed, i % 3 === 2 ? null : market, bodies, rng, RACES[hash32(seed, 3) % RACES.length]);
+      ship.name = ship.entry.name = `${ship.name} · Pedagang`;
+      if (i % 3 === 2) { ship.target = market; ship.orbitR = market.radius * 1.6 + 20 + rng.range(0, 60); }
+      else ship.orbitR = market.radius * rng.range(1.3, 2.4) + rng.range(10, 60);
+    }
+  }
+
+  spawn(seed, home, bodies, rng, pickedRace = null) {
     const srng = new Rng(seed);
-    const race = home ? raceFor(home.planet) : srng.pick(RACES);
+    const race = pickedRace ?? (home ? raceFor(home.planet) : srng.pick(RACES));
     const hull = buildAlienShip(this.kit, race, srng);
     hull.group.scale.setScalar(SCALE);
     const root = new THREE.Group();
@@ -65,6 +81,7 @@ export class AlienShips {
     ship.entry = { id: ship.id, name, position: root.position };
     this.placeInitial(ship, rng);
     this.ships.push(ship);
+    return ship;
   }
 
   placeInitial(ship, rng) {

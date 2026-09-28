@@ -10,6 +10,8 @@ import { PlayerWeapons } from './weapons.js';
 import { rockLoot, pirateLoot } from './loot.js';
 import { segmentHits, pushOut, randomDir } from './geom.js';
 import { shipObject, setShipVisible } from './ship-ref.js';
+import { SpaceGunHits } from './space-gun-hits.js';
+import { shieldStarBurn } from '../ship-systems/ship-resist.js';
 
 const SHIP_RADIUS = 2.4;
 const BOOST_DRAIN = 4;
@@ -46,7 +48,7 @@ export class SpaceCombat {
     this.playerBolts = new BoltPool(this.root, { color: 0x44ccff, length: 7, width: 0.32 });
     this.enemyBolts = new BoltPool(this.root, { color: 0xff2a18, capacity: 120, length: 2.6, width: 0.2 });
     this.rockets = new RocketPool(this.root);
-    this.weapons = new PlayerWeapons({ space, player, sfx: this.sfx, fx: this.fx, bolts: this.playerBolts, rockets: this.rockets });
+    this.weapons = new PlayerWeapons({ space, player, sfx: this.sfx, fx: this.fx, bolts: this.playerBolts, rockets: this.rockets, root: this.root, hits: new SpaceGunHits(this) });
     this.ctx = { shipPos: null, shipVel: space.velocity, bolts: this.enemyBolts, bodies: [], holdFire: false,
       onFire: () => this.sfx.enemyLaser?.() };
     player.on('shipDestroyed', this.onDestroyed);
@@ -69,6 +71,7 @@ export class SpaceCombat {
     const orbits = (this.space.bodies ?? []).map((b) => b.planet?.orbit?.radius ?? 0);
     this.asteroids = new AsteroidField(this.root, system, orbits);
     this.waves = new PirateWaves(system.seed);
+    shieldStarBurn(this.space);
   }
 
   update(dt, input) {
@@ -82,6 +85,7 @@ export class SpaceCombat {
     if (!this.dead) this.weapons.update(dt, input, this.pirates);
     this.updatePirates(dt, shipPos);
     this.playerBolts.update(dt, this.onPlayerBolt);
+    this.weapons.step(dt);
     this.enemyBolts.update(dt, this.onEnemyBolt);
     this.rockets.update(dt, this.fx, this.onRocketHit, this.onRocketBlast);
     if (!this.dead) this.bumpAsteroids(dt, shipPos);
@@ -274,7 +278,7 @@ export class SpaceCombat {
     this.fx.clear();
     this.asteroids?.dispose();
     this.asteroids = null;
-    this.weapons.setLock(null);
+    this.weapons.reset();
     if (this.alarm) this.setAlarm(false);
   }
 
@@ -287,6 +291,7 @@ export class SpaceCombat {
     this.playerBolts.dispose();
     this.enemyBolts.dispose();
     this.rockets.dispose();
+    this.weapons.dispose();
     this.fx.dispose();
     this.root.removeFromParent();
     this.fx = this.root = this.playerBolts = this.enemyBolts = this.rockets = this.weapons = this.ctx = null;

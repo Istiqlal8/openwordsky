@@ -1,33 +1,8 @@
-// Alien races: look, homeworld biomes, temperament, trade goods and a tiny syllable language.
+// Alien races: outpost placement, race choice per planet and a tiny syllable language.
 import { Rng, hash32, unitOf } from '../core/rng.js';
+import { RACES, LORE } from './race-data.js';
 
-export const RACES = [
-  { id: 'vorran', name: 'Kaum Vorran', height: [2.4, 3.0], hue: [0.55, 0.75], glow: 0x9fd8ff,
-    biomes: ['desert', 'barren', 'crystal', 'glass'], temperament: 'Tenang, bijak, dan penuh teka-teki',
-    syllables: ['vor', 'ra', 'esh', 'tha', 'ul', 'ka', 'ren', 'iss', 'oth', 'ae'], joiner: '',
-    wants: ['Silika', 'Emas', 'Kristal Anomali', 'Indium', 'Frost Crystal'], gifts: 'Kristal Alien',
-    building: 'spire', ship: 'shard' },
-  { id: 'ksirr', name: 'Ksirr', height: [1.4, 1.9], hue: [0.05, 0.2], glow: 0xffd24a,
-    biomes: ['toxic', 'fungal', 'swamp', 'lush'], temperament: 'Sibuk, cerewet, pedagang ulung',
-    syllables: ['ksi', 'rr', 'tik', 'zz', 'kra', 'chi', 'xi', 'trk', 'ik'], joiner: "'",
-    wants: ['Karbon', 'Protein Fauna', 'Fungal Mould', 'Ammonia', 'Belerang'], gifts: 'Nanit',
-    building: 'hive', ship: 'insect' },
-  { id: 'blubo', name: 'Blubo', height: [1.2, 1.6], hue: [0.4, 0.95], glow: 0x7dffe0,
-    biomes: ['ocean', 'exotic', 'candy', 'lush'], temperament: 'Ceria, penasaran, suka bercanda',
-    syllables: ['blu', 'bo', 'plo', 'wub', 'oo', 'mlo', 'bub', 'lu', 'pi'], joiner: '-',
-    wants: ['Oksigen', 'Garam', 'Natrium', 'Karang Nautilon', 'Klorin'], gifts: 'Nanit',
-    building: 'bubble', ship: 'pod' },
-  { id: 'mekanid', name: 'Mekanid', height: [1.8, 2.3], hue: [0.0, 1.0], glow: 0xff5a3a,
-    biomes: ['irradiated', 'volcanic', 'barren', 'frozen'], temperament: 'Logis, dingin, sangat teliti',
-    syllables: ['zet', 'kor', 'bip', 'tron', 'ek', 'vek', 'dak', 'nul', 'ix'], joiner: '.',
-    wants: ['Ferit', 'Kobalt', 'Tembaga', 'Uranium', 'Logam Penjaga'], gifts: 'Artefak Kuno',
-    building: 'tech', ship: 'saucer' },
-  { id: 'aquor', name: 'Aquor', height: [1.5, 2.0], hue: [0.3, 0.55], glow: 0xc07dff,
-    biomes: ['swamp', 'ocean', 'lush', 'frozen'], temperament: 'Ramah, gemar bernyanyi',
-    syllables: ['aq', 'lu', 'rhee', 'mo', 'ssa', 'wo', 'ee', 'qua', 'nai'], joiner: ' ',
-    wants: ['Oksigen', 'Karbon', 'Es Air', 'Garam', 'Protein Fauna'], gifts: 'Kristal Alien',
-    building: 'reed', ship: 'manta' },
-];
+export { RACES };
 
 export const RACE_BY_ID = Object.fromEntries(RACES.map((r) => [r.id, r]));
 
@@ -35,14 +10,6 @@ export const RACE_BY_ID = Object.fromEntries(RACES.map((r) => [r.id, r]));
 const GREETINGS = ['Salam, pengembara bintang', 'Langitmu cerah hari ini', 'Selamat datang di desa kami',
   'Kau berbau debu angkasa', 'Semoga bintangmu tak pernah padam', 'Kami tidak menggigit. Biasanya.',
   'Ceritakan dunia asalmu', 'Tukar barang? Tukar cerita?', 'Angin membawa tamu baru'];
-
-const LORE = {
-  vorran: ['Menara kami menyimpan suara leluhur.', 'Kristal bernyanyi saat dua bulan sejajar.'],
-  ksirr: ['Sarang kami punya seribu lorong dan satu ratu.', 'Semua bisa ditukar, bahkan mimpi.'],
-  blubo: ['Kami lahir dari hujan hangat di laut ungu.', 'Cahaya di perut kami berarti bahagia!'],
-  mekanid: ['Inti kami ditempa di bintang yang telah mati.', 'Efisiensi adalah bentuk tertinggi keramahan.'],
-  aquor: ['Nyanyian kami memanggil ikan dari laut dalam.', 'Sirip kami berubah warna saat jatuh cinta.'],
-};
 
 const OUTPOST_SALT = 0xa11e;
 
@@ -102,5 +69,5 @@ export function alienName(race, rng) {
   let w = rng.pick(race.syllables) + rng.pick(race.syllables);
   if (rng.chance(0.3)) w += rng.pick(race.syllables);
   w = w.charAt(0).toUpperCase() + w.slice(1);
-  return race.id === 'mekanid' ? `${w}-${2 + rng.int(98)}` : w;
+  return race.id === 'mekanid' || race.id === 'nexar' ? `${w}-${2 + rng.int(98)}` : w;
 }

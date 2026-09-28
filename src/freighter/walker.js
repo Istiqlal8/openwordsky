@@ -2,7 +2,7 @@
 // V toggles first/third person. The camera never leaves the walkable space.
 import * as THREE from 'three';
 import { Astronaut } from '../view/astronaut.js';
-import { ceilingAt } from './interior-shell.js';
+import { STEP } from './walkable.js';
 
 const EYE = 1.7, WALK = 4.5, SPRINT = 9, GRAVITY = 9.8;
 const JUMP_V = Math.sqrt(2 * GRAVITY * 1.1);
@@ -21,8 +21,8 @@ export class Walker {
     Object.assign(this, { yaw: 0, pitch: 0, velY: 0, onGround: true, speed: 0, thirdPerson: true, bobT: 0 });
   }
 
-  place(x, z, yaw) {
-    this.feet.set(x, 0, z);
+  place(x, z, yaw, y = 0) {
+    this.feet.set(x, y, z);
     this.yaw = yaw;
     this.pitch = -0.08;
     this.velY = 0;
@@ -37,6 +37,7 @@ export class Walker {
       this.pitch = THREE.MathUtils.clamp(this.pitch - input.mouse.dy * SENS, -PITCH_MAX, PITCH_MAX);
     }
     this.move(dt, input);
+    this.settle();
     this.jump(dt, input);
     this.avatar.group.visible = this.thirdPerson;
     this.avatar.update(dt, this.feet, this.yaw, this.speed, this.onGround);
@@ -57,12 +58,21 @@ export class Walker {
     this.speed = len > 0 ? speed : 0;
   }
 
+  // Follow ramps and steps while grounded; walking off a ledge starts a fall.
+  settle() {
+    if (!this.onGround) return;
+    const floor = this.walkable.floorAt(this.feet.x, this.feet.z, this.feet.y);
+    if (floor === -Infinity) return;
+    if (this.feet.y - floor > STEP) { this.onGround = false; this.velY = 0; } else this.feet.y = floor;
+  }
+
   jump(dt, input) {
     if (this.onGround && input.pressed('Space')) { this.velY = JUMP_V; this.onGround = false; }
     if (this.onGround) return;
     this.velY -= GRAVITY * dt;
     this.feet.y += this.velY * dt;
-    if (this.feet.y <= 0) { this.feet.y = 0; this.velY = 0; this.onGround = true; }
+    const floor = Math.max(0, this.walkable.floorAt(this.feet.x, this.feet.z, Math.max(this.feet.y, 0)));
+    if (this.velY <= 0 && this.feet.y <= floor) { this.feet.y = floor; this.velY = 0; this.onGround = true; }
   }
 
   // Third person: pull the camera in until it sits inside the room (no seeing through walls).
@@ -73,9 +83,11 @@ export class Walker {
     cam.position.copy(this.head);
     if (!this.thirdPerson) return;
     _off.copy(CHASE).applyEuler(cam.rotation);
+    const w = this.walkable, y = this.feet.y;
     for (let k = 1; k > 0.1; k -= 0.1) {
       _cam.copy(this.head).addScaledVector(_off, k);
-      if (this.walkable.inside(_cam.x, _cam.z, 0.2) && _cam.y > 0.2 && _cam.y < ceilingAt(_cam.x, _cam.z) - 0.2) break;
+      if (w.inside(_cam.x, _cam.z, 0.2, y) && _cam.y > w.floorAt(_cam.x, _cam.z, y) + 0.2
+        && _cam.y < w.ceilingAt(_cam.x, _cam.z, y) - 0.2) break;
     }
     cam.position.copy(_cam);
   }

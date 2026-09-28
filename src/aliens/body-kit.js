@@ -13,12 +13,12 @@ export class GeoKit {
     return g;
   }
 
-  sphere(detail = 18) { return this.get('Sphere', 1, detail, Math.round(detail * 0.7)); }
-  cap(r, len) { return this.get('Capsule', r, len, 4, 10); }
+  sphere(detail = 14) { return this.get('Sphere', 1, detail, Math.round(detail * 0.7)); }
+  cap(r, len) { return this.get('Capsule', r, len, 3, 8); }
   cyl(rt, rb, h, seg = 12) { return this.get('Cylinder', rt, rb, h, seg); }
   cone(r, h, seg = 12) { return this.get('Cone', r, h, seg); }
   box(w, h, d) { return this.get('Box', w, h, d); }
-  torus(r, t) { return this.get('Torus', r, t, 8, 24); }
+  torus(r, t) { return this.get('Torus', r, t, 6, 18); }
   ico(r, detail) { return this.get('Icosahedron', r, detail); }
 
   dispose() {
@@ -67,8 +67,8 @@ export function limb(kit, mat, x, y, z, r, len) {
 export function eyePair(kit, mats, parent, { x, y, z, r, glow = false, pupil = true }) {
   const eyes = [];
   for (const s of [-1, 1]) {
-    const e = mesh(kit.sphere(12), glow ? mats.glow : mats.eye, s * x, y, z, r);
-    if (pupil && !glow) e.add(mesh(kit.sphere(10), mats.pupil, 0, 0, -0.62, 0.5));
+    const e = mesh(kit.sphere(10), glow ? mats.glow : mats.eye, s * x, y, z, r);
+    if (pupil && !glow) e.add(mesh(kit.sphere(8), mats.pupil, 0, 0, -0.62, 0.5));
     parent.add(e);
     eyes.push(e);
   }

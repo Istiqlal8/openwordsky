@@ -2,6 +2,7 @@
 import { shipDesign } from '../view/ship/ship-design.js';
 import { customDesign } from '../view/ship/ship-custom.js';
 import { activeSpec } from '../ui/shipyard/shipyard-store.js';
+import { cargoBonus } from '../craft/ship-mods.js';
 
 // Base hold per class; every cargo pod (parts.cargo) adds POD_SLOTS.
 export const HOLD = { fighter: 4, explorer: 8, exotic: 8, hauler: 14 };
@@ -15,7 +16,7 @@ export function currentDesign(save) {
 }
 
 export function holdOf(design) {
-  return (HOLD[design.cls] ?? 6) + (design.parts?.cargo ?? 0) * POD_SLOTS;
+  return (HOLD[design.cls] ?? 6) + (design.parts?.cargo ?? 0) * POD_SLOTS + cargoBonus();
 }
 
 export function usedHold(active) {

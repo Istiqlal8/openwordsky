@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { Rng, hash32 } from '../core/rng.js';
 import { fbm2 } from '../core/noise.js';
-import { swayMaterial } from './ocean-kit.js';
+import { swayMaterial, filledMaterial } from './ocean-kit.js';
 import * as G from './reef-geo.js';
 
 const CELL = 12, REACH = 7, KEEP = REACH + 3, NEW_PER_FRAME = 30, CRABS = 36;
@@ -25,13 +25,13 @@ export class Reef {
     this.meshes = {};
     for (const [k, spec] of Object.entries(KINDS)) this.meshes[k] = this.instanced(k, spec);
     this.crabMesh = this.instanced('crab', { geo: G.crab, cap: CRABS });
-    this.crabs = Array.from({ length: CRABS }, (_, i) => ({ pos: new THREE.Vector3(), yaw: 0, t: i, placed: false, dead: false }));
+    this.crabs = Array.from({ length: CRABS }, (_, i) => ({ pos: new THREE.Vector3(), yaw: 0, t: i, placed: false }));
     this.crabs.forEach((c, i) => this.crabMesh.setColorAt(i, _c.set(ctx.pal.crab).offsetHSL(0, 0, (i % 5) * 0.03 - 0.06)));
   }
 
   instanced(key, spec) {
     const mat = spec.sway ? swayMaterial(`reef-${key}`, { side: spec.side ?? THREE.FrontSide }, spec.sway)
-      : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: spec.side ?? THREE.FrontSide });
+      : filledMaterial(`reef-${key}`, { side: spec.side ?? THREE.FrontSide });
     const mesh = new THREE.InstancedMesh(spec.geo(), mat, spec.cap);
     mesh.count = 0;
     mesh.frustumCulled = false;
@@ -42,7 +42,7 @@ export class Reef {
 
   // Deterministic content of one floor cell: { kind: [[matrix, color], ...] }.
   buildCell(cx, cz) {
-    const { h, waterY, scale, pal } = this.ctx, x0 = cx * CELL, z0 = cz * CELL;
+    const { h, waterY, scale } = this.ctx, x0 = cx * CELL, z0 = cz * CELL;
     const r = new Rng(hash32(this.seed, cx, cz)), cell = {};
     const d = waterY - h(x0 + CELL / 2, z0 + CELL / 2);
     if (d < 1) return cell;
@@ -156,7 +156,6 @@ export class Reef {
     const { h, waterY, scale } = this.ctx;
     let n = 0;
     for (const c of this.crabs) {
-      if (c.dead) continue;
       if (!c.placed || c.pos.distanceToSquared(cam) > 60 * 60) this.placeCrab(c, cam);
       if (!c.placed) continue;
       c.t += dt;
@@ -192,14 +191,14 @@ export class Reef {
   nearestCrab(pos, maxDist) {
     let best = maxDist, found = null;
     for (const c of this.crabs) {
-      if (!c.placed || c.dead) continue;
+      if (!c.placed) continue;
       const d = c.pos.distanceTo(pos);
       if (d < best) { best = d; found = c; }
     }
     return found ? { crab: found, distance: best } : null;
   }
 
-  crabCount(pos, r) { return this.crabs.filter((c) => c.placed && !c.dead && c.pos.distanceTo(pos) < r).length; }
+  crabCount(pos, r) { return this.crabs.filter((c) => c.placed && c.pos.distanceTo(pos) < r).length; }
 
   dispose() {
     for (const mesh of [...Object.values(this.meshes), this.crabMesh]) {

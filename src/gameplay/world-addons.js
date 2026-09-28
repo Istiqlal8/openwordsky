@@ -6,8 +6,18 @@
 import { GuideMarkers } from '../guide/guide-markers.js';
 import { WildExtras } from './wild-extras.js';
 import { RescueBeacons } from '../missions/rescue-beacons.js';
+import { FishingScene } from '../fishing/fishing-scene.js';
+import { BaseSite } from '../build/build-world.js';
+import { LegendWorld } from '../legend/legend-world.js';
+import { RaidWorld } from '../raid/raid-world.js';
+import { MechWorld } from '../mech/mech-world.js';
 export const WORLD_ADDONS = [
   RescueBeacons,
   GuideMarkers,
   WildExtras,
+  FishingScene,
+  BaseSite,
+  LegendWorld,
+  RaidWorld,
+  MechWorld,
 ];

@@ -9,13 +9,14 @@ import { makeMover } from './movers.js';
 import { Beacons } from './beacons.js';
 import { population } from './population.js';
 import { Villager } from './villager.js';
+import { VillageLife } from '../life-sim/village-life.js';
 
 const LAYOUTS = { farm: layoutFarm, hamlet: layoutHamlet, town: layoutTown, fishing: layoutFishing,
   research: layoutResearch, colony: layoutColony, mining: layoutMining };
 export const COLORS = { farm: '#ffd36b', hamlet: '#ffd36b', fishing: '#6bd4ff', town: '#ffa36b',
   research: '#9ff0ff', colony: '#9cff6a', mining: '#ffc04a' };
 const GLOW = { farm: 0xffc070, hamlet: 0xffc070, fishing: 0xffe0a0, town: 0xffb070, research: 0x7df0ff, colony: 0x9cff6a, mining: 0xffa040 };
-const ANIMATE = 200, SHOW = 600; // residents animate within ANIMATE m, hidden beyond SHOW m (from the site edge)
+const ANIMATE = 200, SHOW = 480; // residents animate within ANIMATE m, frozen beyond it, hidden beyond SHOW m (from the site edge)
 
 export class Settlement {
   // site: { type, x, z, yaw, name, seed, r }; signKey: atlas key of its name board.
@@ -48,7 +49,8 @@ export class Settlement {
     let seed = this.site.seed || 1;
     this.ctx = { h: this.h, planet: this.planet, hub: L.hub, spots: L.spots.length ? L.spots : [L.hub],
       rand: () => ((seed = (seed * 16807) % 2147483647) / 2147483647) };
-    this.idle = true; // first update poses everyone once
+    this.life = this.ctx.life = new VillageLife(this);
+    this.posed = false; // far settlements are posed once, then frozen
   }
 
   // Distance from the player to the settlement edge (0 inside).
@@ -62,9 +64,18 @@ export class Settlement {
     this.people.visible = edge < SHOW;
     for (const m of this.movers) m.object.visible = edge < SHOW * 2;
     if (edge < SHOW * 2) for (const m of this.movers) m.update(t);
-    if (edge > ANIMATE && !this.idle) return;
-    this.idle = edge > ANIMATE;
+    const far = edge > ANIMATE;
+    if (far && this.posed) { if (this.awake) this.sleep(); return; }
+    this.posed = far;
+    this.awake = !far;
+    this.life.update(dt);
     for (const v of this.villagers) v.update(dt, this.ctx, player);
+  }
+
+  // Out of range: residents freeze in place and animals stop counting them as targets.
+  sleep() {
+    this.awake = false;
+    for (const v of this.villagers) v.vitals.active = false;
   }
 
   // Closest resident -> { v, d } (d = Infinity when none).
@@ -89,6 +100,7 @@ export class Settlement {
   dispose() {
     for (const m of this.meshes) { m.removeFromParent(); m.geometry.dispose(); }
     for (const m of this.movers) { m.object.removeFromParent(); m.dispose(); }
+    this.life.dispose();
     for (const v of this.villagers) v.dispose();
     this.people.removeFromParent();
     this.beacons.dispose();

@@ -3,6 +3,7 @@
 import { BIOMES } from '../gen/biomes.js';
 import { PICKUPS, FLORA_MATERIALS, FAUNA_MATERIALS } from '../quest/materials.js';
 import { endemicOf } from '../quest/endemic.js';
+import { fishPrice } from '../fishing/fish-species.js';
 
 const CHEAP = new Set(['Ferit', 'Karbon', 'Oksigen', 'Natrium', 'Silika', 'Es Air', 'Garam', 'Ammonia', 'Belerang', 'Pirit', 'Dioksit']);
 const PRECIOUS = new Set(['Emas', 'Platinum', 'Uranium', 'Indium', 'Tritium', 'Kristal Anomali']);
@@ -21,6 +22,7 @@ export const PACK = 5;
 
 function basePrice(name) {
   if (SPECIAL[name]) return SPECIAL[name];
+  if (fishPrice(name)) return fishPrice(name);
   if (PICKUP_RARE.has(name) && !BIO.has(name)) return 12;
   if (BIO.has(name)) return 7;
   if (PICKUP_COMMON.has(name)) return 6;

@@ -6,7 +6,7 @@ import { Rng } from '../core/rng.js';
 import { earthBiome } from './earth-biome.js';
 import { EarthShore } from './earth-shore.js';
 
-const RABBITS = 14, BUTTERFLIES = 40, AROUND = [25, 75], LOST = 110;
+const RABBITS = 30, BUTTERFLIES = 60, AROUND = [25, 75], LOST = 110;
 const WING_COLORS = [0xffa020, 0xffffff, 0xfff050, 0x60a0ff, 0xff70b0].map((c) => new THREE.Color(c));
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);

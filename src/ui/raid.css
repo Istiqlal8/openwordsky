@@ -1,0 +1,48 @@
+/* Boss raids: the health bar at the top of the screen and the floating damage numbers. */
+.raid-bar {
+  --boss: #ff6a3a;
+  position: absolute; left: 50%; top: 58px; transform: translateX(-50%); z-index: 6;
+  width: min(560px, calc(100vw - 32px)); display: grid; gap: 4px; padding: 8px 12px 9px;
+  background: linear-gradient(180deg, rgba(6, 10, 18, 0.72), rgba(4, 8, 14, 0.4));
+  border-top: 2px solid var(--boss); pointer-events: none;
+}
+.raid-name {
+  font: 700 17px/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--boss); text-align: center;
+}
+.raid-pips { display: flex; justify-content: center; gap: 5px; }
+.raid-pip { width: 22px; height: 3px; background: rgba(255, 255, 255, 0.16); }
+.raid-pip.is-now { background: var(--boss); box-shadow: 0 0 8px var(--boss); }
+.raid-pip.is-done { background: rgba(255, 255, 255, 0.5); }
+.raid-track { height: 10px; background: rgba(0, 0, 0, 0.55); border: 1px solid rgba(255, 255, 255, 0.14); }
+.raid-fill {
+  display: block; height: 100%; background: linear-gradient(90deg, var(--boss), #fff6);
+  transition: width 0.18s linear;
+}
+.raid-bar.is-shielded .raid-track { box-shadow: 0 0 0 2px rgba(111, 227, 255, 0.6); }
+.raid-bar.is-shielded .raid-fill { background: linear-gradient(90deg, #6fe3ff, #fff6); }
+.raid-meta { font: 600 11px/1.3 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); text-align: center; }
+
+.raid-nums { position: absolute; left: 50%; top: 46%; width: 0; height: 0; z-index: 6; pointer-events: none; }
+.raid-num {
+  position: absolute; left: 0; top: 0; transform-origin: 50% 50%;
+  font: 700 18px/1 var(--display); color: #ffd98a; text-shadow: 0 0 8px rgba(0, 0, 0, 0.9);
+  white-space: nowrap; margin-left: -12px;
+}
+.raid-num.is-core { color: #ff8a5a; font-size: 22px; }
+.raid-num.is-weak { color: #8fd4ff; font-size: 14px; }
+
+/* Journal / tracker */
+.q-track.is-raid .q-title, .q-card.is-raid .q-tag { color: #ff6a3a; }
+.is-raid .q-fill { background: #ff6a3a; }
+.raid-group { display: grid; gap: 8px; }
+.raid-group .q-text.is-done { color: var(--text); }
+
+.hud:not([data-mode="space"]):not([data-mode="surface"]) .raid-bar,
+.hud:has(.q-journal:not(.is-hidden)) .raid-bar { display: none; }
+
+@media (max-width: 640px), (max-height: 500px) {
+  .raid-bar { top: 44px; padding: 5px 8px 6px; }
+  .raid-name { font-size: 13px; }
+  .raid-track { height: 7px; }
+}

@@ -1,6 +1,6 @@
 // Per-frame updates for each play mode (space, surface, gas dive) plus shared ticking.
 import { spaceFeed, surfaceFeed } from './hud-feed.js';
-import { FLIGHT_HINTS, SURFACE_HINTS } from './surface-mode.js';
+import { FLIGHT_HINTS, SUB_HINTS, SUMMON_KEY, SURFACE_HINTS } from './surface-mode.js';
 import { rechargeShip } from './ship-recharge.js';
 
 export class FrameLoop {
@@ -28,7 +28,7 @@ export class FrameLoop {
     hud.setTarget(s.target ?? s.looked, Boolean(s.target));
     hud.setSpeed(space.speed);
     vitals.update(player, { hostiles: s.hostiles, lock: s.lock, boostAllowed: s.boostAllowed });
-    const home = freighter.dock ? [{ id: 'kapal-induk', name: 'Kapal Induk', position: freighter.dock.position }] : [];
+    const home = freighter.dock ? [{ id: 'kapal-induk', name: freighter.nearest(pos)?.name ?? 'Kapal Induk', position: freighter.dock.position }] : [];
     this.game.feed = spaceFeed(space, spaceMode.combat, s.target, [...home, ...spaceMode.alienShips.list(), ...spaceMode.traffic.list()]);
     this.announce('hail', s.npcShip ? `Kapal lewat: ${s.npcShip.name} · ${s.npcShip.captain}` : null);
     if (!player.dead) this.spaceKeys(s);
@@ -36,6 +36,9 @@ export class FrameLoop {
 
   spaceKeys(s) {
     const { input, overlays, hud, sfx, player } = this.a, f = this.flow, design = this.game.design;
+    const shift = input.down('ShiftRight') || input.down('ShiftLeft');
+    if (shift && input.pressed('KeyH')) return overlays.openFleet('shop');
+    if (shift && input.pressed('KeyB')) return overlays.openFleet('yard');
     if (s.landOn) f.land(s.landOn);
     else if (input.pressed('KeyE') && s.target) f.land(s.target.planet);
     else if (input.pressed('KeyF') && (s.looked || s.target)) f.scan((s.looked ?? s.target).planet);
@@ -52,20 +55,38 @@ export class FrameLoop {
     vitals.update(player, { wanted: s.wanted, storm: s.storm, beam: s.beam });
     g.feed = surfaceFeed(surface, surfaceMode.wildlife, surfaceMode.gameplay,
       [...surfaceMode.visitors.list(), ...surfaceMode.aliens.list()], surfaceMode.places());
-    if (s.action) overlays.baseAction(s.action, g.design);
+    if (s.action === 'market') overlays.openMarket(surfaceMode.pendingShop);
+    else if (s.action) overlays.baseAction(s.action, g.design);
     this.announce('door', s.home ? `[T] ${s.home.label}` : null);
     this.announce('line', s.visitor?.line ? `${s.visitor.name}: ${s.visitor.line}` : null);
+    this.announce('trade', s.trade?.line ? `${s.trade.label}: ${s.trade.line}` : null);
     this.announce('villager', s.villager?.line ? `${s.villager.label}: ${s.villager.line}` : null);
     this.announce('alien', s.alien?.line ? `${s.alien.name}: ${s.alien.line}${s.alien.vendor ? ' (T: dagang)' : ''}` : null);
-    if (s.flying !== g.flying) { g.flying = s.flying; hud.setHints(s.flying ? FLIGHT_HINTS : SURFACE_HINTS); }
+    this.announce('sub', s.subPrompt ?? null);
+    if (s.sonar) hud.toast(s.sonar.text);
+    this.surfaceHints(s);
     if (!player.dead) this.surfaceKeys(s);
+  }
+
+  // Hints per ride, with a live depth row while the submarine or the ship is under water.
+  surfaceHints(s) {
+    const { hud } = this.a, g = this.game;
+    const mode = s.sub ? 'sub' : s.flying ? 'fly' : 'foot';
+    const depth = s.depth > 0.5 ? Math.round(s.depth) : 0;
+    if (mode === g.rideMode && depth === g.shownDepth) return;
+    g.rideMode = mode;
+    g.shownDepth = depth;
+    g.flying = s.flying;
+    const base = mode === 'sub' ? SUB_HINTS : mode === 'fly' ? FLIGHT_HINTS : SURFACE_HINTS;
+    hud.setHints(depth ? [...base, ['Kedalaman', `${depth} m`]] : base);
   }
 
   surfaceKeys(s) {
     const { input, surfaceMode, hud, quests } = this.a, f = this.flow;
     if (s.leave) f.takeOff();
+    else if (input.pressed(SUMMON_KEY) && !quests.panel?.isOpen) surfaceMode.summonSub();
     else if (input.pressed('KeyE')) surfaceMode.door(s);
-    else if (input.pressed('KeyF')) {
+    else if (input.pressed('KeyF') && !s.sub) { // in the submarine F is the headlights
       f.scan(this.game.planet);
       if (s.creature) hud.toast(`Fauna: ${s.creature.name}`);
       quests.sawCreature(s.creature);
@@ -81,6 +102,11 @@ export class FrameLoop {
     sfx.alarm(s.depth > 0.83);
     this.announce('gas', s.warning);
     if (!player.dead && s.leave) this.flow.takeOff();
+    else if (!player.dead && input.pressed('KeyF')) {
+      const c = gas.nearestCreature?.();
+      this.a.hud.toast(c ? `Terpindai: ${c.name} · ${c.distance} m` : 'Tidak ada makhluk di dekat');
+      this.a.sfx.scan();
+    }
   }
 
   freighter(dt) {
@@ -95,6 +121,7 @@ export class FrameLoop {
   // Inventory/minimap keys, quests and autosave.
   tick(dt) {
     const { input, inventory, minimap, player, quests } = this.a, g = this.game;
+    if (input.pressed('Comma')) this.a.overlays.openCreator();
     if (input.pressed('Tab') || input.pressed('KeyI')) {
       inventory.toggle();
       if (inventory.isOpen) input.unlock(); else input.lock(); // free the mouse to click items

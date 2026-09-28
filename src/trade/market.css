@@ -1,0 +1,31 @@
+/* Market overlay (Jual / Beli). Amber = action & prices, cyan = info (matches weapon-store.css). */
+.mkt { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px;
+  background: radial-gradient(ellipse at center, rgba(10, 18, 30, 0.72), rgba(2, 4, 10, 0.92)); }
+.mkt-panel { width: min(1040px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; }
+.mkt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.mkt-title .panel-label { margin: 0 0 4px; }
+.mkt-name { font: 700 22px/1.15 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
+.mkt-race, .mkt-dim, .mkt-col-sub, .mkt-hint { color: var(--muted); font-weight: 600; }
+.mkt-wallet { font: 700 20px/1 var(--display); color: var(--amber); white-space: nowrap; padding-top: 4px; }
+.mkt-greet { color: var(--cyan); font-weight: 600; font-style: italic; }
+.mkt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height: 0; flex: 1; }
+.mkt-col { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); background: rgba(2, 6, 12, 0.45); }
+.mkt-col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.mkt-col-title { font: 700 15px/1 var(--display); letter-spacing: 0.14em; text-transform: uppercase; }
+.mkt-list { overflow: auto; max-height: 46vh; display: flex; flex-direction: column; }
+.mkt-row { display: grid; grid-template-columns: 1fr auto auto auto auto; align-items: center; gap: 8px; padding: 5px 10px;
+  border-bottom: 1px solid rgba(111, 227, 255, 0.08); font: 600 15px/1.1 var(--body); cursor: default; }
+.mkt-row:hover, .mkt-row.is-on { background: rgba(255, 176, 64, 0.08); }
+.mkt-item { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.mkt-want { font: 600 9px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: #1a1206;
+  background: var(--amber); padding: 3px 5px; }
+.mkt-count { color: var(--muted); }
+.mkt-price { color: var(--amber); font-weight: 700; min-width: 70px; text-align: right; }
+.mkt-btn { padding: 4px 8px; font-size: 11px; }
+.mkt-empty { padding: 12px; color: var(--muted); }
+.mkt-info { min-height: 76px; padding: 8px 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 3px; }
+.mkt-info-head { display: flex; gap: 10px; align-items: baseline; }
+.mkt-tag { color: var(--cyan); font: 600 10px/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
+.mkt-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.mkt-msg { color: var(--cyan); font-weight: 600; min-height: 18px; }
+@media (max-width: 760px) { .mkt-cols { grid-template-columns: 1fr; } .mkt-list { max-height: 28vh; } }

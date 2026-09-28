@@ -7,7 +7,7 @@ import { makeAtlas } from './signs.js';
 import { LiveParts } from './live-parts.js';
 import { Residents } from './residents.js';
 
-const REACH = 6; // interaction distance to a door / console
+const REACH = 9; // interaction distance to a door / console
 
 export class HomeBase {
   constructor(surface) {

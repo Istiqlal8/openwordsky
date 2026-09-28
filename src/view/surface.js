@@ -5,12 +5,14 @@ import { TerrainPatch, painter } from '../earth/terrain-patch.js';
 import { FarTerrain } from '../earth/far-terrain.js';
 import { EarthWorld } from '../earth/earth-world.js';
 import { Swimmer, SWIM_SPEED, SWIM_SPRINT } from '../earth/swimming.js';
+import { buffMul } from '../craft/buffs.js';
 import { WaterSurface } from '../earth/water-surface.js';
 import { SurfaceSky } from './surface-sky.js';
 import { SurfaceProps } from './surface-props.js';
 import { shipDesign } from './ship/ship-design.js';
 import { LandedShip, findDrySpawn } from './ship/landed-ship.js';
-import { Astronaut } from './astronaut.js';
+import { ShipLights } from './ship/ship-lights.js';
+import { Avatar } from '../character/avatar.js';
 import { SurfaceFlight } from './surface-flight.js';
 
 const SIZE = 440, SEG = 110;
@@ -46,13 +48,16 @@ export class SurfaceView {
     this.shipDesign = shipDesign(1);
     this.landed = null;
     this.spawn = { x: 0, z: 0 };
+    this.vehicle = null; // submarine (src/ocean/submarine.js): drives feet/camera like flight
   }
 
   get planet() { return this._planet; }
   get position() { return this.head; }
-  get flying() { return this.flight.active; }
+  // Riding something (ship or submarine): the on-foot systems all stand down.
+  get flying() { return this.flight.active || Boolean(this.vehicle?.active); }
+  get inShip() { return this.flight.active; }
   get shipPosition() { return this.landed ? this.landed.position : null; }
-  get swimming() { return Boolean(this.swim?.active) && !this.flight.active; }
+  get swimming() { return Boolean(this.swim?.active) && !this.flying; }
   // Camera below a (non-lava) water surface.
   get underwater() { return Boolean(this.swim) && this.camera.position.y < this.swim.waterY; }
   // Feet at or below the lava surface of a volcanic world (the floor keeps them from sinking).
@@ -67,9 +72,22 @@ export class SurfaceView {
     if (this._planet) this.placeShip();
   }
 
+  // The player's character (species, face, clothes) from the character creator.
+  setLook(look) {
+    this.charLook = look; // `look()` is the mouse-look method, so the character look needs its own name.
+    if (!this.avatar) return;
+    const casual = this.avatar.casual;
+    this.avatar.dispose();
+    this.avatar = new Avatar(look);
+    this.avatar.setCasual(casual);
+    this.scene.add(this.avatar.group);
+  }
+
   placeShip() {
     this.landed?.dispose();
     this.landed = new LandedShip(this.scene, this.shipDesign, this.h, this._planet, this.spawn);
+    this.shipLights?.dispose();
+    this.shipLights = new ShipLights(this.landed.model.group, this.landed.model.length ?? 8);
     this.props.clearZone = { x: this.landed.position.x, z: this.landed.position.z, r: 9 };
     this.props.rebuild(this.center.x, this.center.z);
   }
@@ -87,7 +105,7 @@ export class SurfaceView {
     this.props = new SurfaceProps(this.scene, planet, this.h, this.patch);
     this.earth = planet.style === 'earth' ? new EarthWorld(this) : null;
     this.swim = planet.terrain.hasWater && planet.biome.id !== 'volcanic' ? new Swimmer(this, EYE) : null;
-    this.avatar = new Astronaut();
+    this.avatar = new Avatar(this.charLook);
     this.scene.add(this.avatar.group);
     this.flight.active = false;
     this.resetPlayer();
@@ -139,7 +157,9 @@ export class SurfaceView {
   update(dt, input) {
     if (!this._planet) return;
     dt = Math.min(dt, 0.1);
-    if (this.flight.active) {
+    if (this.vehicle?.active) {
+      this.avatar.group.visible = false; // the submarine already placed feet/head/camera
+    } else if (this.flight.active) {
       this.flight.update(dt, input);
       this.avatar.group.visible = false;
     } else {
@@ -155,6 +175,7 @@ export class SurfaceView {
     else if (this.propsDue) { this.propsDue = false; this.props.rebuild(this.center.x, this.center.z); }
     this.waterSurface?.update(dt, this.camera.position.x, this.camera.position.z, this.scene.background);
     this.sky.update(dt, this.camera.position, this.underwater);
+    this.shipLights?.update(dt, this.sky.nightFactor ?? 0);
     this.props.update(dt, this.camera.position);
     this.far?.update(this.feet.x, this.feet.z, this.center);
     this.earth?.update(dt, this.camera.position);
@@ -169,7 +190,7 @@ export class SurfaceView {
 
   move(dt, input) {
     const sprint = input.down('ShiftLeft') || input.down('ShiftRight');
-    const speed = this.swim?.active ? (sprint ? SWIM_SPRINT : SWIM_SPEED) : sprint ? SPRINT : WALK;
+    const speed = this.swim?.active ? (sprint ? SWIM_SPRINT : SWIM_SPEED) : sprint ? SPRINT * buffMul('sprint') : WALK;
     let f = (input.down('KeyW') ? 1 : 0) - (input.down('KeyS') ? 1 : 0);
     let s = (input.down('KeyD') ? 1 : 0) - (input.down('KeyA') ? 1 : 0);
     const len = Math.hypot(f, s);
@@ -251,8 +272,12 @@ export class SurfaceView {
     this.sky.dispose();
     this.props.dispose();
     this.landed?.dispose();
+    this.shipLights?.dispose();
+    this.shipLights = null;
+    this.flight.dispose();
     this.avatar?.dispose();
     this.terrain = this.patch = this.far = this.earth = this.swim = this.waterSurface = this.water = this.sky = this.props = this.landed = this.avatar = null;
+    this.vehicle = null;
     this._planet = null;
   }
 }

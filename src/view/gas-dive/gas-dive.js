@@ -61,6 +61,7 @@ export class GasDive {
     this.time += dt;
     const pos = p.flight.position;
     const storm = p.clouds.stormAt(pos, this.time);
+    this.storm = storm;
     const turb = GasHazards.turbulence(pos.y, storm);
     p.flight.update(dt, input, turb);
     p.flight.placeCamera(this._camera, turb);
@@ -97,10 +98,23 @@ export class GasDive {
     p.clouds.update(t, cam, p.atm.light, p.lightning.flash);
     p.sky.update(cam, atm);
     p.eye.update(t, cam);
-    p.creatures.update(t, cam);
+    this.updateFauna(dt, cam);
     p.rocks.update(t, cam);
     _air.copy(WIND).addScaledVector(p.flight.gust, -0.5);
     p.wind.update(dt, cam, _air, p.flight.velocity, turb);
+  }
+
+  // Creatures react to the ship; storm eels may zap nearby (shake, rare light damage).
+  updateFauna(dt, cam) {
+    const p = this.parts;
+    const ev = p.creatures.update({ dt, time: this.time, cam, ship: p.flight.position, vel: p.flight.velocity, storm: this.storm });
+    if (ev.shake > 0) p.flight.kick(ev.shake);
+    if (ev.damage > 0) this.onDamage?.(ev.damage, 'Belut Badai');
+  }
+
+  // Closest creature to the ship for the scanner: { name, distance } (metres) or null.
+  nearestCreature() {
+    return this.parts ? this.parts.creatures.nearest(this.parts.flight.position) : null;
   }
 
   render(renderer) {

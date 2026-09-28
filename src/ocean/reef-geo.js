@@ -31,13 +31,22 @@ export function brainCoral() {
   return mergeParts([{ geo, color: 0xffffff }]);
 }
 
-// Sea fan: a flat lacy half-disc on a short stem (double sided).
+// Sea fan: a flat wedge radiating up from its foot, with darker veins and a wavy rim.
 export function fanCoral() {
-  const fan = new THREE.CircleGeometry(0.5, 18, 0, Math.PI).translate(0, 0.45, 0);
+  const fan = new THREE.CircleGeometry(1, 24, Math.PI * 0.18, Math.PI * 0.64).scale(0.75, 1, 1);
   const p = fan.attributes.position;
-  for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 9) * 0.03);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), r = Math.hypot(x, y);
+    p.setXYZ(i, x, y * (0.92 + 0.08 * Math.sin(Math.atan2(y, x) * 14)), Math.sin(x * 7) * 0.04 * r);
+  }
   fan.computeVertexNormals();
-  return mergeParts([{ geo: fan, color: 0xffffff }, { geo: new THREE.CylinderGeometry(0.02, 0.03, 0.5, 4).translate(0, 0.25, 0), color: 0xb0a090 }]);
+  const geo = mergeParts([{ geo: fan, color: 0xffffff }, { geo: new THREE.CylinderGeometry(0.025, 0.04, 0.2, 4).translate(0, 0.1, 0), color: 0xb0a090 }]);
+  const q = geo.attributes.position, c = geo.attributes.color;
+  for (let i = 0; i < q.count; i++) {
+    const k = 0.75 + 0.25 * Math.abs(Math.sin(Math.atan2(q.getY(i), q.getX(i)) * 22)) * Math.min(1, Math.hypot(q.getX(i), q.getY(i)) * 2);
+    c.setXYZ(i, c.getX(i) * k, c.getY(i) * k, c.getZ(i) * k);
+  }
+  return geo;
 }
 
 // Anemone: a fat foot crowned with swaying tentacles.

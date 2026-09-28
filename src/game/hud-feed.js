@@ -1,5 +1,6 @@
 // Builds minimap + screen-marker data from the live scenes each frame.
 import * as THREE from 'three';
+import { isTradeWorld, TRADE_LABEL, TRADE_COLOR } from '../trade/trade-worlds.js';
 
 const fwd = new THREE.Vector3();
 const MAX_HOSTILE_MARKERS = 8;
@@ -18,8 +19,12 @@ export function spaceFeed(space, combat, target, npcs = []) {
   const bodies = space.bodies.map((b) => ({ x: b.pos.x, z: b.pos.z, r: b.radius, color: b.planet.palette.ground1,
     name: b.planet.name, orbit: b.planet.orbit.radius, current: target?.planet === b.planet }));
   const pirates = combat.pirates ?? [];
-  const markers = space.bodies.map((b, i) => ({ id: `p${i}`, position: b.pos, label: b.planet.name,
-    sub: dist(b.pos.distanceTo(ship) - b.radius), color: b.planet.palette.ground1, kind: 'planet' }));
+  const markers = space.bodies.map((b, i) => {
+    const trade = isTradeWorld(b.planet);
+    return { id: `p${i}`, position: b.pos, label: b.planet.name,
+      sub: `${trade ? `${TRADE_LABEL} · ` : ''}${dist(b.pos.distanceTo(ship) - b.radius)}`,
+      color: trade ? TRADE_COLOR : b.planet.palette.ground1, kind: 'planet' };
+  });
   for (const n of npcs.slice(0, 4)) {
     markers.push({ id: `n${n.id}`, position: n.position, label: n.name, sub: dist(n.position.distanceTo(ship)), color: 0x9fe8ff, kind: 'ship' });
   }

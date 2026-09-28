@@ -4,6 +4,8 @@ import { Rng } from '../../core/rng.js';
 import { hsl } from '../../core/color.js';
 import { word } from '../../gen/names.js';
 import { shipDesign } from './ship-design.js';
+import { WEAPON_IDS, weaponId } from '../../ship-systems/ship-weapons.js';
+import { ARMOR_IDS } from '../../ship-systems/ship-resist.js';
 
 export const BODIES = ['wedge', 'long', 'boxy', 'organic', 'saucer'];
 export const WING_SHAPES = ['swept', 'delta', 'straight', 'forward', 'none'];
@@ -25,6 +27,7 @@ export const DEFAULT_SPEC = Object.freeze({
   engines: 2, engineSize: 0.4, nacelles: false, fins: 2,
   canopy: 'small', antenna: false, dish: false, guns: 2, legs: 3,
   colors: { hull: '#7a8ea8', trim: '#23262e', glow: '#5fd0ff' }, decal: 'none',
+  weapon: 'laser', armor: 'none',
 });
 
 const clamp = (v, [lo, hi], def) => (Number.isFinite(+v) ? Math.min(hi, Math.max(lo, +v)) : def);
@@ -62,6 +65,7 @@ export function normalizeSpec(raw = {}) {
     fins: num('fins', false), canopy: oneOf(s.canopy, CANOPIES, 'small'),
     antenna: Boolean(s.antenna), dish: Boolean(s.dish), guns: s.guns === 4 ? 4 : 2, legs: s.legs === 4 ? 4 : 3,
     colors: normalizeColors(s.colors), decal: oneOf(s.decal, DECALS, 'none'),
+    weapon: oneOf(s.weapon, WEAPON_IDS, 'laser'), armor: oneOf(s.armor, ARMOR_IDS, 'none'),
   };
 }
 
@@ -84,7 +88,7 @@ export function specFromDesign(design) {
     wings: wingsFromParts(p.wings), engines: eng.length, engineSize: eng.length === 1 ? r0 / 1.3 : r0,
     nacelles: Boolean(p.nacelles), fins: p.fins ?? 0,
     canopy: p.canopy?.size >= 1.1 ? 'bubble' : 'small', antenna: Boolean(p.antenna), dish: Boolean(p.dish),
-    guns: p.guns, legs: p.legs, decal: 'none',
+    guns: p.guns, legs: p.legs, decal: 'none', weapon: weaponId(design), armor: 'none',
     colors: { hull: cssHex(design.palette.hull), trim: cssHex(design.palette.trim), glow: cssHex(design.palette.glow) },
   });
 }
@@ -112,5 +116,6 @@ export function randomSpec(seed = (Math.random() * 2 ** 32) >>> 0) {
   s.canopy = rng.pick(CANOPIES);
   s.decal = rng.pick(DECALS);
   s.colors = randomColors(rng);
+  s.armor = rng.pick(ARMOR_IDS);
   return normalizeSpec(s);
 }

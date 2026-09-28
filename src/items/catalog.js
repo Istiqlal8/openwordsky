@@ -1,10 +1,11 @@
 // Item encyclopedia: what every inventory item is, where it comes from and what it is for.
 import { FLORA_MATERIALS, FAUNA_MATERIALS, PICKUPS } from '../quest/materials.js';
+import { DISH_INFO } from '../craft/kitchen.js';
 
 // Things you can use straight from the inventory (see items/use.js).
 export const ACTIONS = {
   oxygen: 'Isi oksigen suit', hazard: 'Isi pelindung suit', heal: 'Pulihkan kesehatan',
-  energy: 'Isi energi pesawat', hull: 'Perbaiki lambung pesawat',
+  energy: 'Isi energi pesawat', hull: 'Perbaiki lambung pesawat', eat: 'Makan',
 };
 
 const KNOWN = {
@@ -22,6 +23,7 @@ const KNOWN = {
   'Artefak Kuno': { cat: 'Langka', desc: 'Peninggalan bangsa kuno.', source: 'Reruntuhan (T), kapal karam, pedagang alien.', use: 'Barang berharga untuk misi dan koleksi.' },
   'Kristal Alien': { cat: 'Langka', desc: 'Kristal yang diolah bangsa alien.', source: 'Berdagang dengan pedagang alien (T).', use: 'Barang dagangan bernilai tinggi.' },
   'Trofi Langka': { cat: 'Langka', desc: 'Trofi dari hewan buruan besar.', source: 'Berburu dinosaurus dan hewan raksasa.', use: 'Koleksi dan misi berburu.' },
+  ...DISH_INFO,
 };
 
 const EDIBLE = new Set(['Buah Hutan', 'Herba Liar', 'Susu Fauna', 'Telur Fauna', 'Nektar', 'Buah Kaktus', 'Jamur Liar', 'Rumput Laut']);

@@ -1,5 +1,7 @@
 // Creature behaviour: temperament-driven reactions (flee / approach / charge), herd routine
 // (wander, graze, drink, rest, follow the leader), predators stalking prey. Sets a.dest, a.want, a.goal.
+import { actors } from '../../../life-sim/actors.js';
+
 const TEMPER = {
   Jinak: { flee: 5, shy: 1 }, Penakut: { flee: 24, shy: 1 }, Pemalu: { flee: 16, shy: 1 }, Gelisah: { flee: 11, shy: 1 },
   Penasaran: { curious: 18, shy: 1 }, 'Suka bermain': { curious: 14, shy: 1 }, Tenang: {}, Agresif: {}, Pemangsa: {}, Teritorial: {},
@@ -62,7 +64,7 @@ function chasePlayer(h, a, player, dp, dt) {
 function pickPrey(h, a) {
   let best = null, bd = 40;
   for (const b of h.animals) {
-    if (b.dead || b.sp === a.sp || b.flying || b.sp.genes.size > a.sp.genes.size * 1.7 || isPredator(b.sp)) continue;
+    if (b.dead || b.owner || b.sp === a.sp || b.flying || b.sp.genes.size > a.sp.genes.size * 1.7 || isPredator(b.sp)) continue;
     const d = dist2(a.pos, b.pos);
     if (d < bd) { bd = d; best = b; }
   }
@@ -122,9 +124,46 @@ function approach(a, player, dp) {
   return true;
 }
 
+// Hurt by an NPC's blaster: back off for a while and drop the NPC target.
+export function retreat(a, from) {
+  if (a.npc) actors.release(a);
+  a.npc = null;
+  a.npcScan = 30;
+  a.fleeT = Math.max(a.fleeT, 5);
+  a.threat.set(from.x, 0, from.z);
+}
+
+// Hunters sometimes go for a villager / explorer instead (the actors director rations this).
+function huntNpc(h, a, dt) {
+  if (!(a.predator || a.hostile) || a.flying || h.calm > 0 || a.fleeT > 0) return false;
+  if (!a.npc) {
+    if ((a.npcScan = (a.npcScan ?? a.anim.seed % 5) - dt) > 0) return false;
+    a.npcScan = 2.5;
+    a.npc = actors.claim(a, a.pos, a.predator ? 38 : 20);
+    if (!a.npc) return false;
+    a.att ??= { group: h, ref: a, name: a.sp.name, pos: a.pos };
+  }
+  const t = a.npc, d = dist2(a.pos, t.pos);
+  if (!actors.holds(a, t) || d > 70) { actors.release(a); a.npc = null; a.npcScan = 25; return false; }
+  a.dest.set(t.pos.x, 0, t.pos.z);
+  a.want = d < 3 ? a.walkSpeed * 0.5 : a.runSpeed;
+  a.state = 'chase';
+  setGoal(a, 0, 0, 0.6, 1);
+  a.looking = true;
+  a.lookAt.set(t.pos.x, 0, t.pos.z);
+  a.biteCd -= dt;
+  if (d < 1.4 + a.scale * 0.7 + t.radius && a.biteCd <= 0) {
+    a.biteCd = 1.6;
+    a.goal.mouth = 1;
+    actors.bite(a.att, t, 5 + a.sp.genes.size * 4);
+  }
+  return true;
+}
+
 // React to the player / predators first; returns true when a reaction took over.
 function react(h, a, player, dp, dt) {
   if (chasePlayer(h, a, player, dp, dt)) return true;
+  if (huntNpc(h, a, dt)) return true;
   const t = temper(a.sp), wary = (t.flee ?? 0) * (a.sp.genes.size > 2 ? 0.7 : 1);
   if (wary && dp < wary && a.fleeT <= 0) { scare(a, player, 3); alarm(h, a, player); }
   if (a.fleeT > 0) { flee(h, a); return true; }

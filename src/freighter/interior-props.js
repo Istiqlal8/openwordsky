@@ -22,14 +22,14 @@ export function sign(ctx, parent, text, x, y, z, rotY, width = 3, color = '#bff0
 }
 
 // Console on a pedestal with a slanted screen and a floating label; T near it returns `action`.
-export function terminal(ctx, parent, { x, z, rotY, label, action, color = 0x58c8ff }) {
+export function terminal(ctx, parent, { x, z, y = 0, rotY, label, action, color = 0x58c8ff }) {
   const g = new THREE.Group();
-  g.position.set(x, 0, z);
+  g.position.set(x, y, z);
   g.rotation.y = rotY;
   const { mats } = ctx;
   box(g, mats.dark, 0.9, 1.0, 0.55, 0, 0.5, 0);
   box(g, mats.trim, 0.95, 0.06, 0.6, 0, 1.02, 0);
-  const tex = textTexture(label, { w: 512, h: 320, fg: '#dff6ff', bg: '#062033', border: '#58c8ff', font: 'bold 64px system-ui, sans-serif' });
+  const tex = textTexture(label, { w: 512, h: 320, fg: '#dff6ff', bg: '#062033', border: ctx.pal?.sign ?? '#58c8ff', font: 'bold 64px system-ui, sans-serif' });
   ctx.textures.push(tex);
   const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.53),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
@@ -39,8 +39,8 @@ export function terminal(ctx, parent, { x, z, rotY, label, action, color = 0x58c
   const halo = cyl(g, std({ color: 0x000000, emissive: color, emissiveIntensity: 2.5 }), 0.5, 0.5, 0.04, 0, 0.02, 0.55, 24);
   halo.scale.z = 0.6;
   parent.add(g);
-  ctx.blocks.push(aabb(x, z, 1.1, 1.1));
-  ctx.terminals.push({ x, z, action, prompt: `[T] ${label}` });
+  ctx.blocks.push(aabb(x, z, 1.1, 1.1, y));
+  ctx.terminals.push({ x, z, y, action, prompt: `[T] ${label}` });
   return g;
 }
 
@@ -62,16 +62,16 @@ export function crateStack(ctx, parent, rng, x, z, cols, rows, layers) {
 }
 
 // Simple seat facing local +Z.
-export function chair(ctx, parent, x, z, rotY, big = false) {
+export function chair(ctx, parent, x, z, rotY, big = false, y = 0) {
   const g = new THREE.Group(), k = big ? 1.4 : 1, { mats } = ctx;
   cyl(g, mats.metal, 0.08, 0.2, 0.45, 0, 0.23, 0, 10);
   box(g, mats.fabric, 0.6 * k, 0.14, 0.6 * k, 0, 0.5, 0);
   box(g, mats.fabric, 0.6 * k, 0.8 * k, 0.12, 0, 0.9 * k, -0.28 * k);
   if (big) for (const s of [-1, 1]) box(g, mats.dark, 0.12, 0.5, 0.7, s * 0.48 * k, 0.75, 0);
-  g.position.set(x, 0, z);
+  g.position.set(x, y, z);
   g.rotation.y = rotY;
   parent.add(g);
-  ctx.blocks.push(aabb(x, z, 0.7 * k, 0.7 * k));
+  ctx.blocks.push(aabb(x, z, 0.7 * k, 0.7 * k, y));
   return g;
 }
 

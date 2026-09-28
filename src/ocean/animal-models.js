@@ -2,13 +2,13 @@
 // body length): shark, dolphin, sea turtle, stingray and manta. Geometry and materials are
 // shared per kind through a ModelKit. Each builder returns { group, anim(t, speed) }.
 import * as THREE from 'three';
-import { mergeParts } from './ocean-kit.js';
+import { mergeParts, filledMaterial } from './ocean-kit.js';
 
 export class ModelKit {
   constructor() { this.geos = new Map(); this.mats = new Map(); }
   geo(key, fn) { if (!this.geos.has(key)) this.geos.set(key, fn()); return this.geos.get(key); }
   mat(key, fn) { if (!this.mats.has(key)) this.mats.set(key, fn()); return this.mats.get(key); }
-  lit(key, extra = {}) { return this.mat(key, () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, ...extra })); }
+  lit(key, extra = {}, fill = 0.5) { return this.mat(key, () => filledMaterial(`animal-${key}`, { roughness: 0.55, ...extra }, fill)); }
   dispose() {
     this.geos.forEach((g) => g.dispose());
     this.mats.forEach((m) => m.dispose());

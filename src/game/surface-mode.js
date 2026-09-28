@@ -12,17 +12,24 @@ import { SkyExtras } from '../view/cosmos/sky-extras.js';
 import { HomeBase } from '../base/home-base.js';
 import { AlienOutposts } from '../aliens/index.js';
 import { Settlements } from '../villages/settlements.js';
+import { TradeHub } from '../trade/trade-hub.js';
+import { AtmoGuns } from '../ship-systems/atmo-guns.js';
+import { shipShelter } from '../ship-systems/ship-resist.js';
 import { breathable } from '../gameplay/life-support.js';
+import { CloudLayer, hasClouds } from '../view/cloud-layer.js';
 import { pushOut } from './colliders.js';
 import { setCurvature, curveScene } from '../view/curvature.js';
 import { huntTrophy } from '../quest/materials.js';
 import { gatherFromAnimal } from '../gameplay/animal-gather.js';
 import { NpcBadges, explorerNear } from '../npc/npc-badges.js';
+import { OceanLink } from '../ocean/ocean-link.js';
 
 export const SURFACE_HINTS = [['W A S D', 'Jalan'], ['Shift', 'Lari'], ['Space', 'Lompat / jetpack'], ['Klik\u00a0kiri', 'Tambang / Tembak'], ['1–7', 'Senjata'],
-  ['Klik\u00a0kanan', 'Tembak'], ['G', 'Isi suit'], ['T', 'Interaksi'], ['Q', 'Ambil hasil hewan'], ['J', 'Misi'], ['V', 'Kamera'], ['F', 'Pindai'], ['Tab', 'Inventori'], ['E', 'Naik pesawat']];
-export const FLIGHT_HINTS = [['Mouse', 'Arah'], ['W', 'Maju'], ['Shift', 'Boost'], ['S', 'Rem'],
-  ['Space / C', 'Naik / Turun'], ['E', 'Mendarat'], ['F', 'Pindai']];
+  ['Klik\u00a0kanan', 'Tembak'], ['G / T', 'Isi suit / Interaksi'], ['Q', 'Ambil hasil hewan'], ['J / L', 'Misi / Koleksi'], ['U / O', 'Racik / Kargo'],
+  ['Y / X', 'Bangun / Pancing'], ['P / H', 'Foto / Tunggangi'], ['F / V', 'Pindai / Kamera'], ['Tab / E', 'Inventori / Pesawat'], ['`', 'Pengaturan']];
+export const FLIGHT_HINTS = [['Mouse', 'Arah'], ['W', 'Maju'], ['Klik\u00a0kiri', 'Tembak'], ['Shift', 'Boost'], ['S', 'Rem'],
+  ['Space / C', 'Naik / Turun'], ['C di atas laut', 'Menyelam'], ['E', 'Mendarat'], ['F', 'Pindai']];
+export { SUB_HINTS, SUMMON_KEY } from '../ocean/ocean-link.js';
 
 export class SurfaceMode {
   constructor({ surface, player, sfx, hud }) {
@@ -35,6 +42,8 @@ export class SurfaceMode {
     this.base = new HomeBase(surface);
     this.aliens = new AlienOutposts(surface, player);
     this.villages = new Settlements(surface);
+    this.trade = new TradeHub(surface, player);
+    this.ocean = new OceanLink(surface, player, sfx); // sea life + submarine (SUMMON_KEY)
     this.wildlife = null;
     this.stepDist = 0;
     this.lastPos = null;
@@ -47,6 +56,8 @@ export class SurfaceMode {
     this.base.mount(planet); // Earth only: home base; parks the ship on its pad
     this.aliens.mount(planet);
     this.villages.mount(planet);
+    this.trade.mount(planet);
+    this.clouds = hasClouds(planet) ? new CloudLayer(this.surface.scene, planet) : null;
     this.surface.avatar?.setCasual(breathable(planet)); // no suit where the air is breathable
     setCurvature(planet);
     this.curveT = 0;
@@ -59,10 +70,17 @@ export class SurfaceMode {
     this.wildlife.onBite = (sp, dmg) => { if (this.grounded()) this.player.damageSuit(dmg, `Diserang ${sp.name}`); };
     this.gameplay.mount(planet);
     this.gameplay.ctx.creatures = this.wildlife;
+    this.atmoGuns = new AtmoGuns(this.gameplay.ctx, () => this.gameplay.sentinels);
+    this.wildlife.fx = this.gameplay.ctx.fx;
     this.gameplay.ctx.visitors = this.visitors;
+    this.gameplay.ctx.pets = this.pets; // riding (src/ride/ride-control.js)
     this.wildlife.onKill = (pos, name, sp) => this.creatureKilled(pos, name, sp);
+    this.ocean.mount(planet, heightFn(planet), this.wildlife);
     this.lastPos = null;
   }
+
+  // K on foot: bring the submarine to the nearest water.
+  summonSub() { this.ocean.summon(); }
 
   creatureKilled(pos, name, sp) {
     this.gameplay.ctx.fx.explode(pos, { color: 0x9cff6a, size: 0.5, debris: true });
@@ -82,6 +100,7 @@ export class SurfaceMode {
   exit() {
     this.sfx.mineBeam(false);
     this.gameplay.dispose();
+    this.ocean.dispose(); // the sea itself is disposed with its wildlife group
     this.wildlife?.dispose();
     this.wildlife = null;
     this.visitors.dispose();
@@ -89,6 +108,11 @@ export class SurfaceMode {
     this.base.dispose();
     this.aliens.dispose();
     this.villages.dispose();
+    this.trade.dispose();
+    this.atmoGuns?.dispose();
+    this.atmoGuns = null;
+    this.clouds?.dispose();
+    this.clouds = null;
     this.ruins.dispose();
     this.pets.dispose();
     this.skyExtras?.dispose();
@@ -110,18 +134,24 @@ export class SurfaceMode {
   update(dt, input) {
     const alive = !this.player.dead;
     floraTime.value += dt;
+    const sea = this.ocean.update(dt, alive ? input : IDLE); // drives feet/camera while aboard
     this.surface.update(dt, alive ? input : IDLE);
+    this.atmoGuns?.update(dt, alive && this.surface.inShip ? input : IDLE, this.surface.shipDesign);
     this.collide();
     this.environment(dt, alive);
     if ((this.curveT -= dt) <= 0) { this.curveT = 1; curveScene(this.surface.scene); } // bend newly spawned things too
     if (alive) this.gameplay.update(dt, this.surface.flying ? IDLE : input);
     this.wildlife.update(dt, this.surface.position);
+    this.ocean.afterWildlife();
     this.visitors.update(dt);
     this.badges.update(dt, this.visitors);
     this.ruins.update(dt);
     this.base.update(dt, this.surface.position, this.surface.sky?.nightFactor);
     this.aliens.update(dt, this.surface.position);
     this.villages.update(dt, this.surface.position, this.surface.sky?.nightFactor);
+    this.trade.update(dt, this.surface.position, this.surface.sky?.nightFactor);
+    const sp = this.surface.spawn;
+    this.clouds?.update(dt, this.surface.position, this.surface.floorAt(sp.x, sp.z));
     this.skyExtras.update(dt, this.surface.camera, this.surface.sky?.nightFactor);
     this.pets.update(dt);
     const action = alive && !this.surface.flying && input.pressed('KeyT') ? this.interact() : null;
@@ -137,8 +167,10 @@ export class SurfaceMode {
       wanted: this.gameplay.wanted, storm: this.gameplay.storm,
       flying: f.active, canBoard: !f.active && f.canBoard(), canExit: f.canExit,
       leave: f.active && f.altitude > SPACE_ALTITUDE, speed: f.speed,
+      diving: f.active && f.submerged, ...sea,
       visitor: this.visitors.nearest(this.surface.position, 40), home: this.base.nearest(this.surface.feet), action,
-      alien: this.aliens.nearest(this.surface.feet), villager: this.villages.nearest(this.surface.feet) };
+      alien: this.aliens.nearest(this.surface.feet), villager: this.villages.nearest(this.surface.feet),
+      trade: this.trade.nearest(this.surface.feet) };
   }
 
   // Entering from space: start airborne above the landing area, gliding toward it.
@@ -156,6 +188,9 @@ export class SurfaceMode {
   // E: board the parked ship, or land and step out while flying low.
   door(s) {
     const flight = this.surface.flight, say = (text) => this.player.emit('notice', { text });
+    const subMsg = this.ocean.door(); // aboard, or standing next to the submarine
+    if (subMsg) { say(subMsg); return; }
+    if (s.flying && flight.requestSurface()) { say('Naik ke permukaan dulu...'); return; }
     if (s.flying && s.canExit) { flight.exit(); this.sfx.land(); }
     else if (s.flying) say('Terlalu tinggi, turunkan pesawat');
     else if (s.canBoard) { flight.board(); this.sfx.takeoff(); say('Terbang tinggi untuk ke luar angkasa'); }
@@ -165,7 +200,11 @@ export class SurfaceMode {
   // Water and lava: oxygen drains underwater, lava burns.
   environment(dt, alive) {
     const life = this.gameplay.life;
-    if (life) life.submerged = Boolean(this.surface.underwater);
+    if (life) {
+      // A sealed cockpit or submarine keeps the air in: only a swimmer drowns.
+      life.submerged = Boolean(this.surface.underwater) && !this.surface.flying;
+      life.shelter = this.surface.flying ? shipShelter(this.surface.shipDesign, this.gameplay.ctx.planet) : 1;
+    }
     this.lavaDmg = alive && this.surface.inLava ? (this.lavaDmg ?? 0) + 20 * dt : 0;
     if (this.lavaDmg >= 10) { this.player.damageSuit(this.lavaDmg, 'Lava'); this.lavaDmg = 0; }
   }
@@ -174,9 +213,23 @@ export class SurfaceMode {
   collide() {
     const s = this.surface;
     if (s.flying || !s.feet) return;
-    const solids = [...this.base.colliders(), ...this.aliens.colliders(), ...this.villages.colliders()];
+    const solids = [...this.base.colliders(), ...this.aliens.colliders(), ...this.villages.colliders(), ...this.trade.colliders()];
     if (s.landed && s.shipPosition) solids.push({ x: s.shipPosition.x, z: s.shipPosition.z, r: (s.landed.radius ?? 3) * 0.8 });
+    this.beastSolids(solids);
     if (pushOut(s.feet, solids)) s.updateCamera(0);
+  }
+
+  // Animals are solid bodies: you bump into them instead of walking through.
+  beastSolids(out) {
+    const f = this.surface.feet;
+    for (const g of this.wildlife?.groups ?? []) {
+      for (const b of g.bodies?.() ?? []) {
+        const p = b.root.position;
+        if (b.ref?.dead || Math.abs(p.x - f.x) > 30 || Math.abs(p.z - f.z) > 30) continue;
+        if (p.y > f.y + Math.max(3, b.radius * 2)) continue; // flyers overhead don't block
+        out.push({ x: p.x, z: p.z, r: b.radius * 0.7 });
+      }
+    }
   }
 
   // Landmarks for the radar: the home base (green) and ancient ruins (purple).
@@ -185,6 +238,7 @@ export class SurfaceMode {
     const c = this.base.center;
     if (c) out.push({ x: c.x, z: c.z, color: '#7dffb2' });
     out.push(...this.villages.places());
+    out.push(...this.trade.places());
     const site = this.aliens.site;
     if (site) out.push({ x: site.position.x, z: site.position.z, color: '#ffd166' });
     const r = this.ruins.nearest(this.surface.feet);
@@ -197,6 +251,10 @@ export class SurfaceMode {
   interact() {
     const act = this.base.interact(this.surface.feet);
     if (act) return act;
+    const t = this.trade.interact(this.surface.feet); // trade-hub shopkeepers
+    if (t?.shop === 'weapons') return 'store';
+    if (t?.shop) { this.pendingShop = this.trade.getShop(t.shop); return 'market'; }
+    if (t) { this.player.emit('notice', { text: t.title }); this.player.emit('notice', { text: t.text }); return null; }
     const chat = this.villages.interact(this.surface.feet); // villagers and doors (5 m)
     if (chat) {
       this.player.emit('notice', { text: chat.title });
@@ -205,6 +263,8 @@ export class SurfaceMode {
       return null;
     }
     const deal = this.aliens.interact(this.surface.feet); // alien vendors/residents (5 m)
+    if (deal?.shop === 'weapons') return 'store';
+    if (deal?.shop) { this.pendingShop = this.aliens.getShop(deal.shop); return 'market'; }
     if (deal) { this.player.emit('notice', { text: deal.title }); this.player.emit('notice', { text: deal.text }); return null; }
     const npc = explorerNear(this.visitors, this.surface.feet);
     if (npc) { this.player.emit('npcTalk', { seed: npc.seed, name: npc.name }); return null; }

@@ -56,6 +56,8 @@ export class SeaLife {
     this.items = [];
     this.disposables = [];
     this.name = `${word(this.rng)} ${{ fish: 'Ikan', jelly: 'Ubur', whale: 'Leviatan' }[planet.sea.kind]}`;
+    // Two big-animal models share the 'whale' slot, so oceans do not all hold the same beast.
+    this.bigModel = new Rng(planet.seed ^ 0x5eb).chance(0.45) ? 'leviathan' : 'whale';
     const color = hsl(this.rng.next(), 0.6, 0.55);
     const { count, kind } = planet.sea;
     this.addSchools(Math.max(1, Math.ceil(count / (kind === 'fish' ? 2 : 4))), color);
@@ -86,12 +88,12 @@ export class SeaLife {
     const obj = new THREE.Group();
     obj.add(w.group);
     this.add({ kind: 'whale', obj, fallback: w, tail: w.tail, color, speed: 3, phase: this.rng.range(0, 9),
-      length: this.rng.range(...WHALE_LENGTH) });
+      length: this.rng.range(...WHALE_LENGTH) * (this.bigModel === 'leviathan' ? 1.5 : 1) });
   }
 
   // Swaps the procedural whale for the rigged model once it is loaded.
   whaleModel(it) {
-    const tpl = readyModel('whale');
+    const tpl = readyModel(this.bigModel);
     if (!tpl) return false;
     this.whaleMat ??= tintedMaterial(tpl, it.color, 0.5);
     it.inst = cloneModel(tpl, this.whaleMat);

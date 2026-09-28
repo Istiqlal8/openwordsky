@@ -8,6 +8,8 @@ const BUTTONS = [
   ['KeyV', 'Kamera', 'space surface'], ['KeyH', 'Hangar', 'space'], ['Tab', 'Tas', 'space surface'],
   ['KeyQ', 'Ambil', 'surface'], ['KeyJ', 'Misi', 'space surface'], ['KeyU', 'Racik', 'space surface'],
   ['KeyL', 'Koleksi', 'space surface'],
+  ['KeyY', 'Bangun', 'surface'],
+  ['Period', 'Mech', 'space surface'], ['mouse1', 'Pedang', 'space surface'],
 ];
 const LOOK_GAIN = 1.6;
 const DEAD = 0.25;

@@ -4,6 +4,7 @@ import { hsl, shiftHex } from '../core/color.js';
 import { word } from './names.js';
 import * as T from './species-traits.js';
 import { BIOMES } from './biomes.js';
+import { breathable } from '../gameplay/life-support.js';
 
 const FLORA_PREF = Object.fromEntries(BIOMES.map((b) => [b.id, b.floraPref ?? null]));
 const GLOWY = ['fungal', 'crystal', 'exotic', 'irradiated'];
@@ -72,8 +73,12 @@ function floraGenes(rng, planet) {
   };
 }
 
+// Lush and breathable worlds teem with life: 50-70 fauna and 30-38 flora species (the fauna are
+// streamed in herds around the player, so only a few dozen animals exist at once).
 function speciesCounts(rng, planet) {
   const d = planet.flora.density;
+  if (breathable(planet)) return { fauna: 55 + rng.int(16), flora: 30 + rng.int(9) };
+  if (planet.biome.id === 'lush' && d >= 0.3) return { fauna: 50 + rng.int(11), flora: 30 + rng.int(6) };
   if (d < 0.05) return { fauna: rng.chance(0.4) ? 1 : 0, flora: rng.chance(0.5) ? 1 : 0 };
   return { fauna: 2 + rng.int(Math.round(2 + d * 4)), flora: 2 + rng.int(Math.round(1 + d * 4)) };
 }

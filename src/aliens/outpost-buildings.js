@@ -3,6 +3,8 @@
 import * as THREE from 'three';
 import { hsl } from '../core/color.js';
 import { mesh, pivot } from './body-kit.js';
+import { BUILDING_B } from './outpost-buildings-b.js';
+import { BUILDING_C } from './outpost-buildings-c.js';
 
 // Shared outpost materials (one set per village).
 export function outpostMats(race, rng) {
@@ -15,7 +17,7 @@ export function outpostMats(race, rng) {
     glass: std({ color: new THREE.Color(race.glow).lerp(new THREE.Color(0xffffff), 0.5), transparent: true,
       opacity: 0.35, roughness: 0.08, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide }),
   };
-  if (race.building === 'tech') Object.assign(mats.wall, { metalness: 0.35, roughness: 0.35 });
+  if (race.building === 'tech' || race.building === 'tower') Object.assign(mats.wall, { metalness: 0.35, roughness: 0.35 });
   if (race.building === 'hive') {
     Object.assign(mats.wall, { metalness: 0.25, roughness: 0.3 });
     mats.wall.color.set(hsl(hue + 0.12, 0.45, 0.36));
@@ -111,4 +113,4 @@ function reed(kit, m, rng) {
   return { group: g, r: s + 1.2 };
 }
 
-export const BUILDING = { spire, hive, bubble, tech, reed };
+export const BUILDING = { spire, hive, bubble, tech, reed, ...BUILDING_B, ...BUILDING_C };

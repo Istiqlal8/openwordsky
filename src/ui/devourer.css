@@ -1,0 +1,43 @@
+/* Pemakan Planet: event banner, tracker row and journal card. */
+.dv-banner {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 8;
+  width: min(320px, calc(100vw - 32px)); display: grid; gap: 3px; padding: 8px 12px;
+  background: linear-gradient(160deg, rgba(40, 6, 6, 0.72), rgba(8, 4, 6, 0.55));
+  border: 1px solid rgba(255, 78, 44, 0.55); border-left: 3px solid #ff4e2c;
+  animation: dv-pulse 1.6s ease-in-out infinite; pointer-events: none;
+}
+.dv-banner.is-hidden { display: none; }
+.hud:not([data-mode="space"]):not([data-mode="surface"]) .dv-banner { display: none; }
+@keyframes dv-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 78, 44, 0); }
+  50% { box-shadow: 0 0 22px rgba(255, 78, 44, 0.45); }
+}
+.dv-title {
+  font: 900 13px/1.2 var(--display); letter-spacing: 0.18em; color: #ff6a44; text-transform: uppercase;
+}
+.dv-where { font-size: 13px; }
+.dv-line { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+.dv-phase { color: #ffb08a; }
+.dv-clock { font: 700 13px/1.2 var(--display); color: #fff; font-variant-numeric: tabular-nums; }
+.dv-hint { color: var(--muted); font-size: 12px; }
+.dv-banner .q-bar { background: rgba(255, 78, 44, 0.18); }
+.dv-banner .q-fill, .is-devourer .q-fill { background: #ff4e2c; }
+.dv-banner.is-here { border-color: rgba(255, 190, 60, 0.7); border-left-color: #ffbe3c; }
+
+.q-track.is-devourer .q-title, .q-card.is-devourer .q-title { color: #ff6a44; }
+.q-card.is-devourer { border-color: rgba(255, 78, 44, 0.4); }
+.dv-hist { display: flex; gap: 8px; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.dv-hist-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dv-ok { color: #8fe08f; }
+.dv-bad { color: #ff6a44; }
+.dv-share { font: 600 11px/1.4 var(--display); color: var(--cyan); }
+
+/* Red pulse next to an event system in the galaxy map's system list. */
+.gmap-panel .dv-flag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; font: 700 10px/1.4 var(--display);
+  letter-spacing: 0.1em; color: #ff6a44; border: 1px solid rgba(255, 78, 44, 0.6);
+  animation: dv-pulse 1.4s ease-in-out infinite;
+}
+@media (max-width: 640px), (max-height: 500px) {
+  .dv-banner { top: 8px; width: min(260px, calc(100vw - 24px)); padding: 6px 9px; }
+}

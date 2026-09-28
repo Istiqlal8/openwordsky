@@ -1,0 +1,21 @@
+/* Base building: build-mode bar (Y). */
+.bd-bar {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 7;
+  width: max(min(700px, calc(100vw - 580px)), min(calc(100vw - 32px), 340px)); display: grid; gap: 6px; pointer-events: auto;
+}
+.bd-list { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.bd-item {
+  flex: 0 0 auto; display: grid; gap: 3px; text-align: left; cursor: pointer; min-width: 92px;
+  padding: 6px 8px; color: var(--text, #e8eef5); background: rgba(4, 8, 14, 0.6); border: 1px solid var(--line);
+}
+.bd-item.is-sel { border-color: var(--amber); background: rgba(40, 26, 6, 0.55); }
+.bd-item.is-locked .bd-name { color: var(--muted); }
+.bd-key { font: 600 10px/1 var(--display); color: var(--cyan); }
+.bd-name { font: 600 12px/1.2 var(--display); letter-spacing: 0.06em; }
+.bd-cost { display: grid; font-size: 11px; color: var(--cyan); }
+.bd-cost .is-short { color: var(--red); }
+.bd-status { font-size: 13px; color: #9dff6a; }
+.bd-status.is-bad { color: var(--red); }
+.bd-ops { display: none; gap: 6px; justify-content: flex-end; }
+.is-touch .bd-ops { display: flex; }
+.hud:has(.bd-bar:not(.is-hidden)) .q-tracker { display: none; }

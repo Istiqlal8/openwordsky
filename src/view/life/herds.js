@@ -1,16 +1,22 @@
 // Herds of procedural fauna species: walkers, hoppers, hoverers, crawlers and flyers.
-// Behaviour lives in anatomy/brain.js, locomotion in anatomy/gait.js + motion.js.
+// Herds are streamed around the player (life-sim/herd-stream.js); settlements can adopt
+// animals as mounts or livestock (a.owner drives them). Behaviour lives in anatomy/brain.js,
+// locomotion in anatomy/gait.js + motion.js.
 import * as THREE from 'three';
 import { Rng } from '../../core/rng.js';
 import { buildCreatureTemplate, riggedParts } from './creature-builder.js';
-import { think, scare, temper, isPredator } from './anatomy/brain.js';
+import { think, scare, temper, isPredator, retreat } from './anatomy/brain.js';
 import { steer, place, hopStep } from './anatomy/locomotion.js';
 import { animateLegs, animateBody } from './anatomy/gait.js';
 import { animateBreath, animateHead, animateTail, animateSpine, animateWings, animateTentacles } from './anatomy/motion.js';
+import { HerdStream } from '../../life-sim/herd-stream.js';
+import { HerdLod } from '../../life-sim/herd-lod.js';
+import { pickMountSpecies, pickFlockSpecies, driveOwned } from '../../life-sim/adopt.js';
 
-const MAX_ANIMALS = 36;
 const HOSTILE = ['Agresif', 'Pemangsa', 'Teritorial'];
-const NEAR = 55; // full IK / slope sampling within this distance of the player
+const NEAR = 55;   // full IK / slope sampling within this distance of the player
+const LOD = 75;    // beyond this, drawn as a static far instance (life-sim/herd-lod.js)
+const FAR = 240;   // beyond this, hidden (owned animals keep travelling)
 const tmp = new THREE.Vector3();
 
 // Neck rotation needed for the mouth to reach the ground.
@@ -28,39 +34,72 @@ function animState(parts, seed) {
 }
 
 export class Herds {
-  constructor(scene, planet, heightFn, origin) {
+  // opts: { species?: fauna list (default: the planet's), pick?(x, z, rng, nearSite), dry?(x, z), mounts?: false }
+  constructor(scene, planet, heightFn, origin, opts = {}) {
     this.scene = scene;
     this.origin = origin;
     this.calm = 10; // seconds before hostile species start hunting
     this.heightFn = heightFn;
     this.hasWater = !!planet.terrain.hasWater;
     this.waterY = planet.terrain.hasWater ? planet.terrain.waterY : -Infinity;
+    this.dryFn = opts.dry ?? null;
+    this.mounts = opts.mounts !== false;
     this.rng = new Rng(planet.seed ^ 0x4e2d);
-    this.templates = [];
+    this.templates = new Map();
     this.animals = [];
     this.list = [];
     this.onBite = null;
-    for (const sp of planet.species.fauna) this.addSpecies(sp);
+    this.frame = 0;
+    this.lod = new HerdLod(scene);
+    this.species = (opts.species ?? planet.species.fauna).filter((sp) => sp.herd > 0);
+    this.stream = new HerdStream(this, planet.seed, this.species, { pick: opts.pick });
+    this.stream.update(0, origin, true);
   }
 
-  addSpecies(sp) {
-    const tpl = buildCreatureTemplate(sp);
-    this.templates.push(tpl);
-    const g = sp.genes, flying = g.move === 'terbang' || g.move === 'melayang';
-    const center = this.landSpot(flying);
+  isHunter(sp) { return isPredator(sp) || HOSTILE.includes(sp.lore.temperament); }
+
+  template(sp) {
+    if (!this.templates.has(sp)) this.templates.set(sp, buildCreatureTemplate(sp));
+    return this.templates.get(sp);
+  }
+
+  // One herd of `sp` around (x, z) -> spawned animals (at most `cap`).
+  spawnHerd(sp, x, z, spread, cap = 99) {
+    const flying = sp.genes.move === 'terbang' || sp.genes.move === 'melayang';
+    const center = this.landSpot(x, z, spread, flying);
+    if (!center) return [];
+    const out = [];
     let leader = null;
-    for (let i = 0; i < sp.herd && this.animals.length < MAX_ANIMALS; i++) {
-      const root = tpl.root.clone();
-      const scale = g.size * this.rng.range(0.8, 1.2);
-      root.scale.setScalar(scale);
+    for (let i = 0; i < Math.min(sp.herd, cap); i++) {
       const pos = center.clone().add(tmp.set(this.rng.range(-4, 4), 0, this.rng.range(-4, 4)));
-      root.rotation.y = this.rng.range(0, Math.PI * 2);
-      this.scene.add(root);
-      const a = this.makeAnimal(root, sp, pos, scale, leader);
+      const a = this.spawn(sp, pos, sp.genes.size * this.rng.range(0.8, 1.2), leader);
       leader ??= a;
-      this.animals.push(a);
+      out.push(a);
     }
     this.refreshBodies();
+    return out;
+  }
+
+  spawn(sp, pos, scale, leader = null) {
+    const root = this.template(sp).root.clone();
+    root.scale.setScalar(scale);
+    root.rotation.y = this.rng.range(0, Math.PI * 2);
+    this.scene.add(root);
+    const a = this.makeAnimal(root, sp, pos, scale, leader);
+    this.animals.push(a);
+    return a;
+  }
+
+  // Settlement animals: role 'mount' (big walker to ride) or 'flock' (livestock) -> animal | null.
+  adopt(role, pos, owner) {
+    if (role === 'mount' && !this.mounts) return null;
+    const sp = owner.species ??= role === 'mount' ? pickMountSpecies(this.species) : pickFlockSpecies(this.species, owner.seed ?? 0);
+    if (!sp) return null;
+    const scale = role === 'mount' ? Math.min(2.4, Math.max(sp.genes.size, 1.5)) : sp.genes.size * this.rng.range(0.85, 1.1);
+    const a = this.spawn(sp, new THREE.Vector3(pos.x, 0, pos.z), scale);
+    Object.assign(a, { owner, hostile: false, predator: false });
+    this.refreshBodies();
+    return a;
   }
 
   makeAnimal(root, sp, pos, scale, leader) {
@@ -75,18 +114,17 @@ export class Herds {
       pose: { head: 0, lie: 0, mouth: 0, alert: 0, sleep: false }, goal: { head: 0, lie: 0, mouth: 0, alert: 0, sleep: false } };
   }
 
-  // Dry ground 30..70 units from spawn (flyers can start anywhere).
-  landSpot(flying) {
+  // Dry ground near (x, z) (flyers can start anywhere), or null.
+  landSpot(x, z, spread, flying) {
     const out = new THREE.Vector3();
-    for (let i = 0; i < 24; i++) {
-      const a = this.rng.range(0, Math.PI * 2), r = this.rng.range(30, 70 + i * 5);
-      out.set(this.origin.x + Math.cos(a) * r, 0, this.origin.z + Math.sin(a) * r);
-      if (flying || this.dry(out.x, out.z)) break;
+    for (let i = 0; i < 10; i++) {
+      out.set(x + this.rng.range(-spread, spread), 0, z + this.rng.range(-spread, spread));
+      if (flying || this.dry(out.x, out.z)) return out;
     }
-    return out;
+    return null;
   }
 
-  dry(x, z) { return this.heightFn(x, z) > this.waterY + 0.3; }
+  dry(x, z) { return this.dryFn ? this.dryFn(x, z) : this.heightFn(x, z) > this.waterY + 0.3; }
 
   flies(a) { return a.flying; }
 
@@ -128,19 +166,31 @@ export class Herds {
   update(dt, player) {
     this.calm -= dt;
     this.player = player;
+    this.frame++;
     this.env ??= { heightFn: this.heightFn, dt, near: true };
+    this.stream.update(dt, player);
+    this.lod.begin();
     const gone = [];
     for (let i = 0; i < this.animals.length; i++) {
       const a = this.animals[i];
       if (a.dead) { if (this.corpse(a, dt)) gone.push(a); continue; }
-      think(this, a, player, dt);
+      const dx = a.pos.x - player.x, dz = a.pos.z - player.z, d2 = dx * dx + dz * dz;
+      if (a.owner) driveOwned(this, a, dt);
+      else think(this, a, player, dt);
       hopStep(this, a, dt);
       steer(this, a, dt, i);
       place(this, a, dt);
-      const dx = a.pos.x - player.x, dz = a.pos.z - player.z;
-      this.animate(a, dt, dx * dx + dz * dz < NEAR * NEAR);
+      this.draw(a, dt, d2);
     }
+    this.lod.end();
     for (const a of gone) this.kill(a);
+  }
+
+  // Near: full rig animation; mid: static far instance; beyond FAR: hidden.
+  draw(a, dt, d2) {
+    const far = d2 > LOD * LOD;
+    a.root.visible = d2 < FAR * FAR && !(far && this.lod.put(a, this.template(a.sp)));
+    if (a.root.visible) this.animate(a, dt, d2 < NEAR * NEAR);
   }
 
   // Caught by a predator: stop moving and drop onto its side.
@@ -166,27 +216,35 @@ export class Herds {
   // Shootable bodies: { root, radius, ref }.
   bodies() { return this.list; }
 
-  kill(a) {
+  // Removed from the world (streamed out, tamed, killed); herd mates pick a new leader.
+  remove(a) {
     const i = this.animals.indexOf(a);
     if (i < 0) return;
     this.scene.remove(a.root);
+    a.dead = true;
     this.animals.splice(i, 1);
-    const heir = this.animals.find((b) => b.sp === a.sp) ?? null;
+    const heir = this.animals.find((b) => b.sp === a.sp && !b.owner) ?? null;
     for (const b of this.animals) if (b.leader === a) b.leader = b === heir ? null : heir;
     this.refreshBodies();
   }
 
-  // Shot: timid species bolt with their herd, the rest turn on the player.
-  provoke(a) {
+  kill(a) { this.remove(a); }
+
+  // Shot: timid species bolt with their herd, the rest turn on the shooter.
+  provoke(a, from = this.player) {
+    if (a.owner) return;
     if (temper(a.sp).shy) {
-      const from = this.player ?? a.root.position;
-      scare(a, from, 8);
-      for (const b of this.animals) if (b !== a && b.sp === a.sp) scare(b, from, 6);
+      const at = from ?? a.root.position;
+      scare(a, at, 8);
+      for (const b of this.animals) if (b !== a && b.sp === a.sp) scare(b, at, 6);
       return;
     }
     a.hostile = true;
     this.calm = 0;
   }
+
+  // Hit by an NPC: badly hurt attackers back off from the shooter.
+  npcHit(a, from, left = 0) { if (!a.owner && left < 0.45) retreat(a, from); }
 
   nearest(pos, maxDist = 30) {
     let best = null;
@@ -199,12 +257,14 @@ export class Herds {
 
   dispose() {
     for (const a of this.animals) this.scene.remove(a.root);
-    for (const tpl of this.templates) {
+    for (const tpl of this.templates.values()) {
       tpl.root.traverse((o) => o.geometry?.dispose());
       tpl.materials.forEach((m) => m.dispose());
     }
+    this.stream.clear();
+    this.lod.dispose();
     this.animals = [];
     this.list = [];
-    this.templates = [];
+    this.templates.clear();
   }
 }

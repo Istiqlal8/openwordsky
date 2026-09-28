@@ -1,5 +1,6 @@
 // Side panel of the galaxy map: details of one system + Warp button.
 import { el, clear, hexCss } from './dom.js';
+import { isEventSystem } from '../devourer/live.js';
 
 export function lightYears(a, b) {
   const d = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y, a.pos.z - b.pos.z);
@@ -43,6 +44,7 @@ export class GalaxyPanel {
     const { system, planets, current } = view;
     const isHere = system.index === current.index;
     this.body.append(el('div', 'sys-name', system.name));
+    if (isEventSystem(system.index)) this.body.append(el('div', 'dv-flag', 'PEMAKAN PLANET'));
     const star = el('div', 'sys-star');
     const dot = el('span', 'dot');
     dot.style.setProperty('--c', hexCss(system.star.color));

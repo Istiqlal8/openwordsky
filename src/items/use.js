@@ -1,4 +1,6 @@
 // Using one inventory item: spends 1 unit and applies its effect. Returns a toast text.
+import { eatDish } from '../craft/kitchen.js';
+
 const GAIN = { oxygen: 25, hazard: 25, heal: 20, energy: 20, hull: 15 };
 
 function target(player, action) {
@@ -10,6 +12,7 @@ function target(player, action) {
 }
 
 export function useItem(player, name, action) {
+  if (action === 'eat') return eatDish(player, name);
   const [obj, key] = target(player, action);
   if (obj[key] >= 100) return 'Sudah penuh';
   if (!player.removeItem(name, 1)) return `${name} habis`;

@@ -1,4 +1,6 @@
 // Player + ship vitals and inventory. Gameplay modules mutate it; HUD reads it.
+import { shipMod } from '../craft/ship-mods.js';
+
 const MAX = 100;
 const SHIELD_DELAY = 3;
 
@@ -26,8 +28,9 @@ export class PlayerState {
   damageShip(amount) {
     if (this.dead) return;
     this.sinceShipHit = 0;
-    const soaked = Math.min(this.ship.shield, amount);
-    this.ship.shield -= soaked;
+    const k = shipMod('shipShield', 'soak', this); // Perisai module: shield takes less per hit
+    const soaked = Math.min(this.ship.shield / k, amount);
+    this.ship.shield = Math.max(0, this.ship.shield - soaked * k);
     this.ship.hull = Math.max(0, this.ship.hull - (amount - soaked));
     this.emit('shipHit', { shield: soaked > 0 });
     if (this.ship.hull <= 0) this.die('shipDestroyed');
@@ -68,8 +71,8 @@ export class PlayerState {
   // Passive regen: shield after a pause, a trickle of energy.
   tickShip(dt) {
     this.sinceShipHit += dt;
-    if (this.sinceShipHit > SHIELD_DELAY) this.ship.shield = Math.min(MAX, this.ship.shield + dt * 12);
-    this.ship.energy = Math.min(MAX, this.ship.energy + dt * 2.5);
+    if (this.sinceShipHit > SHIELD_DELAY) this.ship.shield = Math.min(MAX, this.ship.shield + dt * 12 * shipMod('shipShield', 'val', this));
+    this.ship.energy = Math.min(MAX, this.ship.energy + dt * 2.5 * shipMod('shipEnergy', 'val', this));
   }
 
   respawn(loseFraction = 0.5) {

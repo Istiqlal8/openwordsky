@@ -3,6 +3,7 @@
 // worth travelling to. Each brain returns the animal's speed in m/s for the bone animator.
 import * as THREE from 'three';
 import { wrapAngle } from '../view/life/models/model-group.js';
+import { actors } from '../life-sim/actors.js';
 
 const SCARE = 24;
 
@@ -66,8 +67,52 @@ export function moveHunter(a, dt, player, ok, group) {
     if (d < a.radius + 2.2 && a.biteCd <= 0) { a.biteCd = 1.4; group.onBite?.({ name: a.name }, a.spec.bite); }
     return walkTo(a, dt, a.spec.chase * a.scale, 4, ok);
   }
+  if (a.fleeT > 0) return runOff(a, dt, ok);
+  const npc = huntNpc(a, dt, ok, group, leash);
+  if (npc >= 0) return npc;
   if (leash && a.wait <= 0) a.target.copy(a.home);
   return roam(a, dt, a.spec.speed * a.scale, ok);
+}
+
+// Hunters now and then go for a villager or explorer near their range (rationed by actors).
+// Returns the speed, or -1 when not hunting an NPC.
+function huntNpc(a, dt, ok, group, leash) {
+  if (!a.npc) {
+    if (leash || group.calm > 0 || (a.npcScan = (a.npcScan ?? a.seed * 5) - dt) > 0) return -1;
+    a.npcScan = 2.5;
+    a.npc = actors.claim(a, a.pos, Math.max(18, a.spec.sight * 0.7));
+    if (!a.npc) return -1;
+    a.att ??= { group, ref: a, name: a.name, pos: a.pos };
+  }
+  const t = a.npc, d = Math.hypot(t.pos.x - a.pos.x, t.pos.z - a.pos.z);
+  if (!actors.holds(a, t) || d > a.spec.sight * 1.6) { actors.release(a); a.npc = null; a.npcScan = 25; return -1; }
+  a.target.set(t.pos.x, 0, t.pos.z);
+  a.wait = 0;
+  a.biteCd -= dt;
+  if (d < a.radius + 1.6 + t.radius && a.biteCd <= 0) { a.biteCd = 1.6; actors.bite(a.att, t, a.spec.bite * 0.6); }
+  return walkTo(a, dt, a.spec.chase * a.scale * (d < 2.5 ? 0.3 : 1), 4, ok);
+}
+
+// Badly hurt by an NPC: give up the hunt and run from the shooter for a few seconds.
+export function retreatHunter(a, from) {
+  if (a.npc) actors.release(a);
+  a.npc = null;
+  a.npcScan = 30;
+  a.fleeT = 6;
+  const k = 30 / Math.max(1, Math.hypot(a.pos.x - from.x, a.pos.z - from.z));
+  a.target.set(a.pos.x + (a.pos.x - from.x) * k, 0, a.pos.z + (a.pos.z - from.z) * k);
+}
+
+function runOff(a, dt, ok) {
+  a.fleeT -= dt;
+  return walkTo(a, dt, a.spec.chase * a.scale, 4, ok) || (a.fleeT = 0);
+}
+
+// Settlement animals: the owner (a rider) says where to go and how fast.
+export function moveOwned(a, dt, ok) {
+  const o = a.owner.drive(a, dt);
+  a.target.set(o.x, 0, o.z);
+  return o.speed > 0 ? walkTo(a, dt, o.speed, 3, ok) : 0;
 }
 
 // Whales cruise between deep-water spots, rising and sinking slowly near the surface.

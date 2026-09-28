@@ -1,10 +1,11 @@
-// Player guns: rapid laser bolts (LMB) and homing rockets (RMB) with crosshair lock-on.
+// Player guns: the ship's primary weapon on LMB (laser, plasma, flak, homing missiles, swarm or beam,
+// chosen by the ship design; see src/ship-systems/ship-weapons.js) and homing rockets on RMB,
+// with crosshair lock-on.
 import * as THREE from 'three';
 import { muzzles, aimForward } from './ship-ref.js';
+import { GunBattery } from '../ship-systems/gun-battery.js';
+import { weaponOf } from '../ship-systems/ship-weapons.js';
 
-const LASER_GAP = 0.125;
-const LASER_COST = 0.6;
-const LASER_SPEED = 420;
 const ROCKET_COST = 15;
 const ROCKET_GAP = 1.2;
 const LOCK_COS = Math.cos(THREE.MathUtils.degToRad(14));
@@ -16,41 +17,64 @@ const tmpP = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
 
 export class PlayerWeapons {
-  constructor({ space, player, sfx, fx, bolts, rockets }) {
-    Object.assign(this, { space, player, sfx, fx, bolts, rockets });
-    this.laserCd = 0;
+  // root: scene group for projectiles; hits: SpaceGunHits (optional: without it only rockets fire).
+  constructor({ space, player, sfx, fx, bolts, rockets, root = null, hits = null }) {
+    Object.assign(this, { space, player, sfx, fx, bolts, rockets, hits });
     this.rocketCd = 0;
-    this.muzzle = 0;
     this.lockTarget = null;
+    this.pirates = [];
+    this.design = null;
+    this.battery = new GunBattery(root ?? bolts.core.parent, { fx, sfx, laserPool: bolts });
+    this.env = this.buildEnv();
   }
 
   get damageMult() {
-    return (this.space.shipDesign ?? this.space.design)?.stats?.damage ?? 1;
+    return this.shipDesign?.stats?.damage ?? 1;
+  }
+
+  get shipDesign() {
+    return this.space.shipDesign ?? this.space.design;
+  }
+
+  get weapon() {
+    return weaponOf(this.shipDesign);
+  }
+
+  // Per-frame firing context for the battery (one object, fields refreshed in update).
+  buildEnv() {
+    const self = this;
+    return {
+      weapon: null, aim: new THREE.Vector3(), baseVel: this.space.velocity, dmgMul: 1,
+      get muzzles() { return (self.frameMuzzles ??= muzzles(self.space)); }, // once per frame
+      spend: (cost) => this.player.useEnergy(cost),
+      pickTargets: (out, n, cone) => this.pickTargets(out, n, cone),
+      beamCast: (from, dir, range, amount) => this.hits?.beamCast(from, dir, range, amount) ?? range,
+      shake: (a) => this.space.shake?.(a),
+    };
   }
 
   update(dt, input, pirates) {
-    this.laserCd -= dt;
     this.rocketCd -= dt;
+    this.pirates = pirates;
+    this.frameMuzzles = null;
+    this.noticeShipChange();
     this.setLock(this.bestTarget(pirates, LOCK_COS));
-    if (input.mouseDown(0) && this.laserCd <= 0) this.tryLaser(input);
+    const env = this.env;
+    env.weapon = this.weapon;
+    env.dmgMul = this.damageMult;
+    env.baseVel = this.space.velocity;
+    env.aim.copy(this.space.camera.position).addScaledVector(aimForward(this.space, tmpF), CONVERGE);
+    if (this.hits) this.battery.trigger(dt, input.mouseDown(0), input.clicked(0), env);
+    this.triggered = true;
     if (input.clicked(2) && this.rocketCd <= 0) this.tryRocket(pirates);
   }
 
-  tryLaser(input) {
-    if (!this.player.useEnergy(LASER_COST)) {
-      if (input.clicked(0)) this.sfx.dryFire?.();
-      return;
-    }
-    this.laserCd = LASER_GAP;
-    const list = muzzles(this.space);
-    const from = list[this.muzzle++ % list.length];
-    const cam = this.space.camera;
-    tmpP.copy(cam.position).addScaledVector(aimForward(this.space, tmpF), CONVERGE);
-    tmpV.subVectors(tmpP, from).normalize().multiplyScalar(LASER_SPEED).add(this.space.velocity);
-    this.bolts.fire(from, tmpV, 10 * this.damageMult, 1.4);
-    this.fx.sparks(from, 0x9fe8ff, 6, 0.9); // muzzle flash
-    this.space.shake?.(0.05);
-    this.sfx.laser?.();
+  // A different ship means a different gun: tell the player.
+  noticeShipChange() {
+    const d = this.shipDesign;
+    if (d === this.design) return;
+    if (this.design) this.player.emit('notice', { text: `Senjata kapal: ${weaponOf(d).label}` });
+    this.design = d;
   }
 
   tryRocket(pirates) {
@@ -69,8 +93,21 @@ export class PlayerWeapons {
     this.sfx.rocket?.();
   }
 
-  // Hostile closest to the crosshair within the cone minCos, or null.
-  bestTarget(pirates, minCos) {
+  // Up to n distinct hostiles in the crosshair cone, best aligned first (the lock target leads).
+  pickTargets(out, n, coneDeg) {
+    out.length = 0;
+    if (this.lockTarget) out.push(this.lockTarget);
+    const minCos = Math.cos(THREE.MathUtils.degToRad(coneDeg));
+    while (out.length < n) {
+      const next = this.bestTarget(this.pirates, minCos, out);
+      if (!next) break;
+      out.push(next);
+    }
+    return out;
+  }
+
+  // Hostile closest to the crosshair within the cone minCos (skipping `except`), or null.
+  bestTarget(pirates, minCos, except = null) {
     const cam = this.space.camera.position;
     const fwd = aimForward(this.space, tmpF);
     let best = null;
@@ -78,7 +115,7 @@ export class PlayerWeapons {
     for (const p of pirates) {
       tmpV.subVectors(p.pos, cam);
       const d = tmpV.length();
-      if (d > LOCK_RANGE || !p.alive) continue;
+      if (d > LOCK_RANGE || !p.alive || except?.includes(p)) continue;
       const dot = tmpV.dot(fwd) / d;
       if (dot > bestDot) { bestDot = dot; best = p; }
     }
@@ -90,5 +127,23 @@ export class PlayerWeapons {
     const was = Boolean(this.lockTarget);
     this.lockTarget = target;
     if (was !== Boolean(target)) this.player.emit('lockOn', { locked: Boolean(target) });
+  }
+
+  // Projectiles keep flying (and hitting) even while the player is dead.
+  // A frame without update() (player dead) switches the beam off.
+  step(dt) {
+    if (!this.triggered) this.battery.stopBeam();
+    this.triggered = false;
+    if (this.hits) this.battery.step(dt, this.hits);
+  }
+
+  // New system: drop the lock and every projectile in flight.
+  reset() {
+    this.setLock(null);
+    this.battery.clear();
+  }
+
+  dispose() {
+    this.battery.dispose();
   }
 }

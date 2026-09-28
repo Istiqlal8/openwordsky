@@ -9,6 +9,7 @@ import { PlanetBody, buildStar } from './space-planet.js';
 import { shipDesign } from './ship/ship-design.js';
 import { ShipRig } from './ship/ship-rig.js';
 import { steer, thrust, speedCap, collide, PULSE_SPEED } from './ship/ship-flight.js';
+import { shipMod } from '../craft/ship-mods.js';
 
 const LOOK_ANGLE = THREE.MathUtils.degToRad(6);
 const DUST_COUNT = 400;
@@ -111,6 +112,9 @@ export class SpaceView {
   }
 
   // Swap the player's ship model; flight stats follow the design.
+  // Hull 0..100: drives the smoke/fire damage effects on the model.
+  setHull(hull) { this.rig.setHull(hull); }
+
   setShip(design) {
     this.design = design;
     this.rig.setDesign(design);
@@ -213,7 +217,7 @@ export class SpaceView {
     const q = this.ship.quaternion;
     steer(q, dt, input, stats.agility);
     const pulse = this.pulse && this.controls;
-    const cap = speedCap(this.ship.position, this.bodies, this.system.star.size, input.down('ShiftLeft'), stats.speed, pulse);
+    const cap = speedCap(this.ship.position, this.bodies, this.system.star.size, input.down('ShiftLeft'), stats.speed * shipMod('shipThrust'), pulse);
     // Arm once clear of the departure planet; drop out when the next body gets close.
     if (pulse && cap >= PULSE_SPEED * 0.15) this.pulseArmed = true;
     else if (pulse && this.pulseArmed) this.setPulse(false, 'arrive');

@@ -1,4 +1,7 @@
 // Editor layout: one tab per section, each field bound to a spec path. Labels in Indonesian.
+import { WEAPON_OPTIONS } from '../../ship-systems/ship-weapons.js';
+import { ARMOR_OPTIONS } from '../../ship-systems/ship-resist.js';
+
 const nums = (list) => list.map((n) => [n, String(n)]);
 
 export const SECTIONS = [
@@ -33,8 +36,12 @@ export const SECTIONS = [
     { type: 'toggle', key: 'dish', label: 'Parabola' },
   ] },
   { id: 'weapons', label: 'Senjata', fields: [
+    { type: 'choice', key: 'weapon', label: 'Jenis', options: WEAPON_OPTIONS },
     { type: 'choice', key: 'guns', label: 'Meriam', options: nums([2, 4]) },
     { type: 'choice', key: 'legs', label: 'Kaki', options: nums([3, 4]) },
+  ] },
+  { id: 'armor', label: 'Pelindung', fields: [
+    { type: 'choice', key: 'armor', label: 'Spesialisasi', options: ARMOR_OPTIONS },
   ] },
   { id: 'colors', label: 'Warna', fields: [
     { type: 'color', key: 'colors.hull', label: 'Badan' },

@@ -5,14 +5,23 @@ import { CraftPanel } from '../ui/craft-panel.js';
 import { UPGRADES, tierOf, maxTier } from './upgrades.js';
 import { UPGRADE_RECIPES, USE_RECIPES, have, affordable, pay } from './recipes.js';
 import { BUY, PACK, recordOrigin, sellRows } from './market.js';
+import { cookRows, shipRows } from './tab-rows.js';
+import { tickBuffs, activeBuffs } from './buffs.js';
+import { owner } from './owner.js';
+import { BuffBar } from '../ui/buff-bar.js';
 
 const ROMAN = ['0', 'I', 'II', 'III', 'IV'];
+const TAB_ORDER = ['craft', 'cook', 'ship', 'market'];
 
 export class CraftAddon {
   constructor(wiring) {
     this.w = wiring;
     this.s = (wiring.log.s.craft ??= { origin: {} });
     wiring.player.upgrades ??= {};
+    wiring.player.buffs = (this.s.buffs ??= {});
+    Object.assign(owner, { player: wiring.player, state: this.s });
+    this.buffBar = new BuffBar(wiring.panel.journal.parentNode);
+    this.last = performance.now();
     this.tab = 'craft';
     this.sel = 0;
     this.rows = [];
@@ -30,6 +39,10 @@ export class CraftAddon {
   get sys() { return this.w.planet ? this.w.planet.systemIndex : this.w.save.systemIndex; }
 
   update(input) {
+    const now = performance.now();
+    tickBuffs(this.w.player, Math.min(0.1, (now - this.last) / 1000));
+    this.last = now;
+    this.buffBar.draw(activeBuffs(this.w.player));
     if (input.pressed('KeyU') && !this.justClosed && !this.panel.isOpen) this.open(input);
     this.justClosed = false;
     if (this.panel.isOpen) this.refresh();
@@ -52,7 +65,7 @@ export class CraftAddon {
     if (!this.panel.isOpen || e.repeat) return;
     const n = this.rows.length, c = e.code;
     if (c === 'KeyU') this.close();
-    else if (c === 'ArrowLeft' || c === 'ArrowRight') this.setTab(this.tab === 'craft' ? 'market' : 'craft');
+    else if (c === 'ArrowLeft' || c === 'ArrowRight') this.setTab(this.stepTab(c === 'ArrowRight' ? 1 : -1));
     else if (c === 'ArrowUp') this.sel = (this.sel + n - 1) % Math.max(1, n);
     else if (c === 'ArrowDown') this.sel = (this.sel + 1) % Math.max(1, n);
     else if (/^Digit[1-9]$/.test(c) && Number(c[5]) <= n) this.sel = Number(c[5]) - 1;
@@ -60,6 +73,11 @@ export class CraftAddon {
     else return;
     e.preventDefault();
     this.refresh();
+  }
+
+  stepTab(d) {
+    const n = TAB_ORDER.length;
+    return TAB_ORDER[(TAB_ORDER.indexOf(this.tab) + d + n) % n];
   }
 
   setTab(t) {
@@ -82,7 +100,8 @@ export class CraftAddon {
 
   // Rebuilds rows every call (cheap); redraws the DOM only when something visible changed.
   refresh() {
-    this.rows = this.tab === 'craft' ? this.craftRows() : this.marketRows();
+    const build = { craft: () => this.craftRows(), market: () => this.marketRows(), cook: () => cookRows(this), ship: () => shipRows(this) };
+    this.rows = build[this.tab]();
     this.sel = Math.min(this.sel, Math.max(0, this.rows.length - 1));
     const view = { tab: this.tab, sel: this.sel, nanit: Math.floor(this.w.player.count('Nanit')),
       place: this.w.planet ? `Planet ${this.w.planet.name}` : 'Uplink kapal', rows: this.rows };

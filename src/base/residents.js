@@ -9,7 +9,8 @@ const WALK = 1.7;
 class Resident {
   constructor(scene, accent, start, seed) {
     this.suit = new Astronaut(accent);
-    this.suit.mats.suit.color.lerp(new THREE.Color(accent), 0.3); // tell residents apart from the player
+    // Tell residents apart from the player (the avatar may be an alien look without `mats`).
+    this.suit.mats?.suit?.color?.lerp(new THREE.Color(accent), 0.3);
     scene.add(this.suit.group);
     this.feet = new THREE.Vector3(start.x, 0, start.z);
     this.target = start;

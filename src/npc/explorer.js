@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Astronaut } from '../view/astronaut.js';
 import { isWet, walkTarget } from './terrain-spots.js';
+import { Vitals } from '../life-sim/vitals.js';
 
 const WALK = 2.2, HURRY = 3.4;
 const FRIEND_RANGE = 40, WAVE_RANGE = 8, STOP_RANGE = 4.5;
@@ -23,7 +24,7 @@ export class Explorer {
   constructor(scene, info) {
     Object.assign(this, info);
     this.suit = new Astronaut(info.accent);
-    this.suit.mats.suit.color.lerp(new THREE.Color(info.accent), 0.3); // tell NPCs apart from the player
+    this.suit.mats?.suit?.color.lerp(new THREE.Color(info.accent), 0.3); // tell NPCs apart from the player (old Astronaut only)
     this.cone = scanCone();
     this.suit.group.add(this.cone);
     this.suit.group.visible = false;
@@ -31,6 +32,7 @@ export class Explorer {
     this.feet = new THREE.Vector3(info.door.x, 0, info.door.z);
     this.goal = new THREE.Vector3();
     Object.assign(this, { yaw: 0, speed: 0, state: 'inside', timer: 0, t: 0, greetCd: 0, playerDist: Infinity });
+    this.vitals = new Vitals(this, { armed: true, faction: 'explorer', color: info.accent, damage: 10, rate: 0.6 });
   }
 
   get position() { return this.feet; }
@@ -50,18 +52,44 @@ export class Explorer {
   }
 
   update(dt, h, planet, player) {
+    this.vitals.active = false;
     if (this.state === 'inside') return;
     this.t += dt;
     this.timer -= dt;
     this.stay -= dt;
     this.greetCd -= dt;
     this.playerDist = Math.hypot(player.x - this.feet.x, player.z - this.feet.z);
-    this.react(player);
+    this.vitals.active = this.playerDist < 170 && !this.vitals.hidden;
+    const alarm = this.vitals.update(dt);
     this.speed = 0;
-    this.act(dt, h, planet, player);
+    if (alarm) this.defend(alarm, dt, h, planet);
+    else { this.shelterEnd(h); this.react(player); this.act(dt, h, planet, player); }
     this.feet.y = h(this.feet.x, this.feet.z);
     this.suit.update(dt, this.feet, this.yaw, this.speed, true);
-    this.pose();
+    this.pose(alarm);
+  }
+
+  // Attacked by an animal: shoot back, or run into the ship when badly hurt.
+  defend(mode, dt, h, planet) {
+    this.cone.visible = false;
+    const t = this.vitals.target?.ref?.root?.position;
+    if (mode === 'fight' && t) {
+      this.turnTo(dt * 1.5, t.x, t.z);
+      if (Math.hypot(t.x - this.feet.x, t.z - this.feet.z) < 2.5) this.walk(dt, h, planet, 2 * this.feet.x - t.x, 2 * this.feet.z - t.z, 2, 0.1);
+      this.vitals.shoot(1.3);
+    }
+    if (mode !== 'flee' || this.vitals.hidden) return;
+    if (this.walk(dt, h, planet, this.door.x, this.door.z, HURRY + 1, 0.8)) {
+      this.vitals.hidden = true;
+      this.vitals.modeT = Math.max(this.vitals.modeT, 10);
+      this.suit.group.visible = false;
+    }
+  }
+
+  // Danger over: step back out of the ship.
+  shelterEnd(h) {
+    if (this.suit.group.visible || this.state === 'inside') return;
+    this.exit(h);
   }
 
   // Player proximity overrides: wave when close, walk over when friendly and near.
@@ -134,9 +162,13 @@ export class Explorer {
   }
 
   // Arm poses on top of the walk cycle: wave, or hold the scanner out with a pulsing beam.
-  pose() {
-    const arm = this.suit.arms[1];
+  pose(alarm) {
+    const arm = this.suit.arms[1], g = this.suit.group;
     arm.rotation.z = 0;
+    g.rotation.x = alarm === 'down' ? -1.45 : alarm === 'up' ? -0.5 : 0;
+    g.position.y += alarm === 'down' ? 0.25 : 0;
+    if (alarm === 'fight') { arm.rotation.x = 1.55; this.suit.arms[0].rotation.x = 1.3; return; }
+    if (alarm === 'cheer') { arm.rotation.z = 2.7 + Math.sin(this.t * 9) * 0.3; return; }
     if (this.state === 'greet' && this.timer > 0) arm.rotation.z = 2.7 + Math.sin(this.t * 9) * 0.4;
     if (this.state !== 'scan') return;
     arm.rotation.x = 1.25;
@@ -146,6 +178,7 @@ export class Explorer {
   }
 
   dispose() {
+    this.vitals.dispose();
     this.cone.geometry.dispose();
     this.cone.material.dispose();
     this.suit.dispose();

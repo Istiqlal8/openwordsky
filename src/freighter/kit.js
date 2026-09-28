@@ -2,6 +2,9 @@
 import * as THREE from 'three';
 import { makeCanvas, toTexture } from '../assets/canvas.js';
 
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+const _Y = new THREE.Vector3(0, 1, 0);
+
 export function std(opts) {
   return new THREE.MeshStandardMaterial({ roughness: 0.6, metalness: 0.4, ...opts });
 }
@@ -23,6 +26,16 @@ export function cyl(parent, mat, rTop, rBot, h, x = 0, y = 0, z = 0, seg = 16) {
   m.position.set(x, y, z);
   parent.add(m);
   return m;
+}
+
+// One InstancedMesh (one draw) for many copies of a geometry: items = [[x, y, z, rotY, sx, sy, sz]].
+export function instances(parent, geo, mat, items) {
+  const inst = new THREE.InstancedMesh(geo, mat, items.length);
+  items.forEach(([x, y, z, ry = 0, sx = 1, sy = 1, sz = 1], i) => {
+    inst.setMatrixAt(i, _m.compose(_p.set(x, y, z), _q.setFromAxisAngle(_Y, ry), _s.set(sx, sy, sz)));
+  });
+  parent.add(inst);
+  return inst;
 }
 
 // Canvas texture with centred text (signs, labels, screens). Caller owns (and disposes) it.

@@ -6,6 +6,7 @@ import { makeSignAtlas } from './signs.js';
 import { makeMaterials, applyNight, disposeMaterials } from './materials.js';
 import { Settlement, COLORS } from './settlement.js';
 import { greetLine, tipLine, giftFor } from './names.js';
+import { actors } from '../life-sim/actors.js';
 
 const TALK = 6, REACH = 5;
 const ZONE_RANGE = 450;  // flora zones only for settlements this close (keeps prop placement cheap)
@@ -25,6 +26,7 @@ export class Settlements {
   mount(planet) {
     this.dispose();
     const s = this.surface, sites = planSettlements(planet, s.h, s.spawn);
+    actors.sites = sites.map((q) => ({ x: q.x, z: q.z, r: q.r, name: q.name }));
     if (!sites.length) return;
     this.atlas = makeSignAtlas(sites.map((q) => q.name));
     this.mats = makeMaterials(this.atlas);
@@ -135,5 +137,6 @@ export class Settlements {
     this.list = [];
     this.solid = [];
     this.mats = this.atlas = null;
+    actors.sites = [];
   }
 }
