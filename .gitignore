@@ -1,3 +1,6 @@
 .DS_Store
 node_modules/
 output/
+
+# 10MB source model; the game loads the shrunk mech-gundam.glb (see tools/shrink-glb.mjs)
+assets/models/gundam-rigged.glb
