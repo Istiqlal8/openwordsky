@@ -62,16 +62,7 @@ export class MechSurface {
     this.fovKick = 0;
     this.baseFov = s.camera.fov;
     this.env.groundAt = (x, z) => s.floorAt(x, z);
-    this.fromFlight = Boolean(s.flight?.active);
-    const at = s.shipPosition ?? s.feet;
-    if (this.fromFlight) this.pos.copy(s.landed.model.group.position);
-    else this.pos.set(at.x, s.floorAt(at.x, at.z), at.z);
-    this.heading = s.yaw;
-    this.velY = this.fromFlight ? Math.min(0, s.flight.velocity.y) : 0;
-    this.dropJets = this.fromFlight ? 1.2 : 0;
-    this.crouchT = 0;
-    this.jet = 1;
-    if (this.fromFlight) stopFlight(s);
+    this.spawn(s);
     mech.group.scale.setScalar(1);
     mech.setWorldScale(1);
     mech.group.position.copy(this.pos);
@@ -84,6 +75,20 @@ export class MechSurface {
     this.tr.t = 0;
     this.tr.start(1);
     transformSfx(this.sfx, true);
+  }
+
+  // Either dropping out of a flying ship or standing up where it was parked.
+  spawn(s) {
+    this.fromFlight = Boolean(s.flight?.active);
+    const at = s.shipPosition ?? s.feet;
+    if (this.fromFlight) this.pos.copy(s.landed.model.group.position);
+    else this.pos.set(at.x, s.floorAt(at.x, at.z), at.z);
+    this.heading = s.yaw;
+    this.velY = this.fromFlight ? Math.min(0, s.flight.velocity.y) : 0;
+    this.dropJets = this.fromFlight ? 1.2 : 0;
+    this.crouchT = 0;
+    this.jet = 1;
+    if (this.fromFlight) stopFlight(s);
   }
 
   leave() {
@@ -222,7 +227,7 @@ export class MechSurface {
     const air = this.env.airborne || this.dropJets > 0;
     this.att.update(dt, { fwd: air ? this.fwd : 0, side: this.side, climb: this.velY,
       cap: RUN * 0.8, boost: this.jets, air,
-      turn: shortest(this.heading - (this.lastYaw ?? this.heading)) / Math.max(dt, 1e-3) });
+      turn: yawGap(this.heading, this.lastYaw ?? this.heading) / Math.max(dt, 0.01) });
     this.lastYaw = this.heading;
     if (air) this.pose.fly(dt, this.jets ? 1 : 0.4, this.att);
     else this.pose.walk(dt, this.env);
@@ -278,7 +283,7 @@ export class MechSurface {
   }
 }
 
-// Signed shortest angle from `a` to `b`, used for the torso twist onto the aim line.
+// Signed shortest angle from `a` to `b`: the torso twist onto the aim line and the turn rate.
 function yawGap(a, b) {
   let d = (a - b) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
@@ -287,18 +292,7 @@ function yawGap(a, b) {
 }
 
 // Shortest-way yaw follow.
-function turnToward(a, b, k) {
-  let d = (b - a) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return a + d * Math.min(1, k);
-}
+const turnToward = (a, b, k) => a + yawGap(b, a) * Math.min(1, k);
 
 const IDLE = { down: () => false, pressed: () => false, mouseDown: () => false, clicked: () => false,
   mouse: { dx: 0, dy: 0 }, locked: false };
-
-// Signed shortest angle, so a yaw wrap does not read as a violent turn.
-function shortest(d) {
-  const a = (d + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-  return Math.max(-3, Math.min(3, a));
-}

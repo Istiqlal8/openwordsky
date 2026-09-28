@@ -74,9 +74,22 @@ export function buildMech(m) {
     design: m, mats, group: r.root, hips: r.hips, torso: r.torso, head: r.head,
     legs: r.legs, arms: r.arms, pack: r.pack, rack, pods, saber, flames, calf, base, deploy: 1, sheathed: false,
   };
+  wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill });
+  mech.setThrust(0);
+  mech.setDeploy(1);
+  return mech;
+}
+
+// The mech's public surface: what the pose, gun and transform code is allowed to ask of it.
+function wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill }) {
   mech.setWorldScale = (k) => { fill.distance = m.d.H * 2.6 * k; };
   // `boost` 0..1 stretches the plumes further than the flame curve alone allows, so a hard run
   // reads as a hard run rather than just a bright nozzle.
+  mech.setBinders = (k) => r.pack.binders.forEach((b, i) => {
+    const s = i ? 1 : -1;
+    b.rotation.z = s * k * 0.95;
+    b.rotation.y = -s * k * 0.55;
+  });
   mech.setThrust = (t, boost = 0) => {
     setFlames(flames, THREE.MathUtils.clamp(t, 0, 1), mats);
     if (boost <= 0) return;
@@ -101,9 +114,6 @@ export function buildMech(m) {
     for (const k in mats) mats[k].dispose?.();
     for (const k in saber.mats) saber.mats[k].dispose();
   };
-  mech.setThrust(0);
-  mech.setDeploy(1);
-  return mech;
 }
 
 // Where the hilt rides when it is not in the hand: clipped to the left of the backpack.

@@ -23,6 +23,7 @@ export class MechPose {
     this.brace = 0;      // 0..1 wide firing stance
     this.crouch = 0;     // 0..1 hips dropped, knees flexed
     this.hover = 0;      // clock for the idle and flight sway
+    this.lean = 0;       // extra shoulder twist the flight pose asks mech-aim.js for
     this.stride = (this.d.thighL + this.d.shinL) * 0.62;
     this.contact = [false, false];
     this.onStep = null;
@@ -50,6 +51,10 @@ export class MechPose {
     const lean = this.move * (0.05 + this.run * 0.14) + sway * 0.028;
     this.mech.torso.rotation.x = approach(this.mech.torso.rotation.x, lean, dt, 6);
     this.mech.torso.rotation.z = Math.sin(this.hover * 0.71) * 0.026 * still;
+    this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, 0, dt, 6);
+    for (const leg of this.mech.legs) leg.foot.rotation.z = approach(leg.foot.rotation.z, 0, dt, 6);
+    this.lean = 0;
+    this.mech.setBinders?.(0);
     this.mech.hips.position.y = this.d.hipY + this.bob + sway * this.d.hipY * 0.008;
   }
 
@@ -103,12 +108,16 @@ export class MechPose {
   fly(dt, thrust, att = null) {
     const d = this.d, spread = this.brace;
     const drive = att ? att.drive : thrust, boost = att ? att.boost : 0;
+    const lat = att ? att.lat : 0;
     this.move = approach(this.move, 0, dt, 6);
     this.hover += dt;
     const idle = 1 - drive;
     const sway = Math.sin(this.hover * 0.9), roll = Math.sin(this.hover * 1.31 + 1.1);
-    this.flyLegs(dt, drive, boost, spread, idle);
-    this.flyArms(dt, drive, boost, sway);
+    this.flyLegs(dt, drive, boost, spread, idle, lat);
+    this.flyArms(dt, drive, boost, sway, lat);
+    this.lean = -lat * 0.6;                     // mech-aim.js twists the shoulders onto it
+    this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, lat * 0.32, dt, 6);
+    this.mech.setBinders?.(att ? att.splay : 0);
     const t = this.mech.torso;
     t.rotation.x = approach(t.rotation.x, 0.12 + drive * 0.34 + boost * 0.16 - this.crouch * 0.3 + sway * 0.03 * idle, dt, 4);
     t.rotation.z = roll * 0.035 * idle * (1 - this.aimT);
@@ -119,26 +128,35 @@ export class MechPose {
 
   // Hover: knees up, ankles relaxed, a lazy alternating sway. Boost: legs straight out behind,
   // toes pointed, dead still.
-  flyLegs(dt, drive, boost, spread, idle) {
+  flyLegs(dt, drive, boost, spread, idle, lat) {
     for (const leg of this.mech.legs) {
       const beat = Math.sin(this.hover * 1.17 + (leg.side > 0 ? 0 : 1.7)) * 0.13 * idle;
-      const hip = -(0.30 + drive * 0.52 + boost * 0.26) - spread * 0.3 + beat;
-      const knee = 0.86 - drive * 0.46 - boost * 0.22 + spread * 0.55 - beat * 0.6;
+      const k = Math.max(-1, Math.min(1, leg.side * lat));   // +1 on the side it is breaking toward
+      const hip = -(0.30 + drive * 0.52 + boost * 0.26) - spread * 0.3 + beat + k * 0.95;
+      const knee = 0.86 - drive * 0.46 - boost * 0.22 + spread * 0.55 - beat * 0.6
+        + Math.max(0, k) * 1.0 - Math.max(0, -k) * 0.5;      // lead knee folds up, trail leg extends
       leg.group.rotation.x = approach(leg.group.rotation.x, hip, dt, 5);
-      leg.group.rotation.z = approach(leg.group.rotation.z, leg.side * (0.07 * idle + spread * 0.26), dt, 5);
+      leg.group.rotation.z = approach(leg.group.rotation.z,
+        leg.side * (0.07 * idle + spread * 0.26) + lat * 0.26, dt, 5);
       leg.shin.rotation.x = approach(leg.shin.rotation.x, knee, dt, 5);
-      leg.foot.rotation.x = approach(leg.foot.rotation.x, -(0.5 + drive * 0.5 + boost * 0.25), dt, 5);
+      leg.foot.rotation.x = approach(leg.foot.rotation.x, -(0.5 + drive * 0.5 + boost * 0.25) + k * 0.4, dt, 5);
+      leg.foot.rotation.z = approach(leg.foot.rotation.z, -lat * 0.3, dt, 5);
     }
   }
 
   // Arms are free and a little out while hovering, folded in tight at speed; aiming always wins.
-  flyArms(dt, drive, boost, sway) {
+  flyArms(dt, drive, boost, sway, lat) {
+    const wide = Math.abs(lat);
     for (let i = 0; i < 2; i++) {
       const arm = this.mech.arms[i], hold = i ? this.aim.aimT : Math.max(this.combo.drawT, this.aim.aimT * 0.6);
       const free = 1 - hold, tuck = Math.min(1, drive + boost * 0.5);
-      arm.upper.rotation.x = approach(arm.upper.rotation.x, (0.18 + tuck * 0.2 + sway * 0.05 * (1 - tuck)) * free, dt, 6);
-      arm.upper.rotation.z = approach(arm.upper.rotation.z, -arm.side * (0.26 - tuck * 0.2) * free, dt, 6);
-      arm.fore.rotation.x = approach(arm.fore.rotation.x, (-0.5 - tuck * 0.75) * free, dt, 6);
+      const k = Math.max(-1, Math.min(1, arm.side * lat));   // the two arms never mirror each other
+      arm.upper.rotation.x = approach(arm.upper.rotation.x,
+        (0.18 + tuck * 0.2 + sway * 0.05 * (1 - tuck) - k * 0.55) * free, dt, 6);
+      arm.upper.rotation.z = approach(arm.upper.rotation.z,
+        -arm.side * (0.26 - tuck * 0.2 + wide * 1.15) * free, dt, 6);   // thrown wide in a break
+      arm.fore.rotation.x = approach(arm.fore.rotation.x,
+        (-0.5 - tuck * 0.75 * (1 - wide * 0.75) + k * 0.34) * free, dt, 6);
     }
   }
 

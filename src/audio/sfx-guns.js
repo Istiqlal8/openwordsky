@@ -2,7 +2,7 @@
 // Each sound is a transient + body + tail so the classes stay apart by timbre, not just pitch.
 // Mixed into Sfx.prototype; `this.kit` carries the buses, the voice cap and the distance model.
 import { layer, vary } from './dsp.js';
-import { place } from './voices.js';
+import { cue } from './voices.js';
 
 // --- ship primary weapons -------------------------------------------------------------------
 
@@ -35,6 +35,7 @@ function flak(k, P) {
   layer(k, { noise: 1, filter: 'lowpass', ff0: 6800 * p, ff1: 320, dur: 0.17, gain: 0.32 * P.g, attack: 0.001,
     grit: 1, wet: P.wet, lp: P.lp });
   layer(k, { type: 'triangle', f0: 210 * p, f1: 42, dur: 0.15, gain: 0.22 * P.g, attack: 0.001 });
+  if (!P.detail) return; // far away, the shell rattle is inaudible anyway
   for (let i = 0; i < 3; i++) {
     layer(k, { noise: 1, filter: 'highpass', ff0: 4000, dur: 0.02, gain: 0.05 * P.g, attack: 0.001,
       delay: 0.03 + i * 0.035 + Math.random() * 0.02, lp: P.lp });
@@ -176,23 +177,23 @@ export const GunSfx = {
   gun(id, at) {
     if (!this.live) return;
     if (id === 'beam') { this.gunBeam(true, 'ship'); return; }
-    const fn = SHIP[id] ?? shipLaser;
-    const [key, prio, gap] = GATE[id] ?? GATE.laser;
-    if (!this.voices.take(key, prio, gap)) return;
-    fn(this.kit, place(this.kit, at));
+    const P = cue(this, at, ...(GATE[id] ?? GATE.laser));
+    if (P) (SHIP[id] ?? shipLaser)(this.kit, P);
   },
 
   laser(at) { this.gun('laser', at); },
   rocket(at) { this.gun('homing', at); },
 
   enemyLaser(at) {
-    if (!this.live || !this.voices.take(...GATE.enemy)) return;
-    enemyLaser(this.kit, place(this.kit, at));
+    if (!this.live) return;
+    const P = cue(this, at, ...GATE.enemy);
+    if (P) enemyLaser(this.kit, P);
   },
 
   sentinelLaser(at) {
-    if (!this.live || !this.voices.take(...GATE.sentinel)) return;
-    sentinel(this.kit, place(this.kit, at));
+    if (!this.live) return;
+    const P = cue(this, at, ...GATE.sentinel);
+    if (P) sentinel(this.kit, P);
   },
 
   // Hand weapons; 'beam' is a sustained loop. `arg` is the charge level for 'charge'.
@@ -200,14 +201,16 @@ export const GunSfx = {
     if (!this.live) return;
     if (name === 'beam') { this.gunBeam(true, 'hand'); return; }
     const fn = HAND[name];
-    if (!fn || !this.voices.take(...GATE.hand)) return;
-    fn(this.kit, place(this.kit, at), arg);
+    if (!fn) return;
+    const P = cue(this, at, ...GATE.hand);
+    if (P) fn(this.kit, P, arg);
   },
 
   // Trigger pulled with no energy / no ammo.
   dryFire() {
-    if (!this.live || !this.voices.take('dry', 1, 120)) return;
-    const P = place(this.kit);
+    if (!this.live) return;
+    const P = cue(this, null, 'dry', 1, 120);
+    if (!P) return;
     HAND.empty(this.kit, P);
     layer(this.kit, { type: 'sine', f0: 120, f1: 80, dur: 0.09, gain: 0.05, attack: 0.002 });
   },

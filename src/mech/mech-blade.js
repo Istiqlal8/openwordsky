@@ -26,6 +26,13 @@ function coreMaterial(color) {
     blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
 }
 
+// The blade body is solid, not additive: it has to occlude what is behind it so the sword reads as
+// an object with a silhouette instead of a streak of light.
+function bladeMaterial(color) {
+  const c = new THREE.Color(color).lerp(new THREE.Color(1, 1, 1), 0.74);
+  return new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 1, toneMapped: false });
+}
+
 // Hilt: grip, collar, emitter throat and a short cross guard.
 function buildHilt(mats, r, g) {
   g.add(part(rod(r * 0.92, r * 4.4, 10), mats.dark, 0, r * 2.2, 0));
@@ -46,20 +53,21 @@ export function buildBlade(m, mats, color) {
   const r = d.armR * 0.46;
   const root = buildHilt(mats, r, g);
   const len = (d.upperL + d.foreL) * 1.16;
-  const width = r * 1.35, thick = r * 0.5;
+  const width = r * 1.5, thick = r * 0.6;
   const hot = coreMaterial(0xffffff);
+  const skin = bladeMaterial(color);
   const halo = coreMaterial(color);
-  halo.opacity = 0.3;
-  const beam = part(bladeGeo(len, width, thick), mats.flame, 0, root, 0);
+  halo.opacity = 0.34;
+  const beam = part(bladeGeo(len, width, thick), skin, 0, root, 0);
   const core = part(bladeGeo(len, width * 0.42, thick * 0.5), hot, 0, root, 0);
-  const shell = part(bladeGeo(len, width * 2.1, thick * 2.6), halo, 0, root, 0);
+  const shell = part(bladeGeo(len * 1.04, width * 2.1, thick * 4.2), halo, 0, root, 0);
   beam.renderOrder = 2;
   core.renderOrder = 3;
   shell.renderOrder = 1;
   g.add(shell, beam, core);
   g.rotation.x = -Math.PI / 2;
   const api = {
-    group: g, beam, core, shell, length: len, mats: { hot, halo },
+    group: g, beam, core, shell, length: len, mats: { hot, halo, skin },
     tip: new THREE.Vector3(0, root + len, 0),
     setLit(t) {
       const k = Math.max(0.001, t);
@@ -67,8 +75,9 @@ export function buildBlade(m, mats, color) {
       core.scale.set(0.3 + k * 0.7, k * 0.985, 0.3 + k * 0.7);
       shell.scale.set(0.4 + k * 0.6, k, 0.4 + k * 0.6);
       hot.opacity = 0.95 * k;
-      halo.opacity = 0.3 * k;
-      mats.flame.opacity = Math.max(mats.flame.opacity, 0.25 + k * 0.5);
+      halo.opacity = 0.34 * k;
+      skin.opacity = k;
+      beam.visible = core.visible = shell.visible = t > 0.01;
     },
   };
   api.setLit(0);

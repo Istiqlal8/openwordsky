@@ -36,11 +36,12 @@ export class SplashFx {
     this.dPos = new Float32Array(DROPS * 3).fill(-1e5);
     this.dVel = new Float32Array(DROPS * 3);
     this.dLife = new Float32Array(DROPS);
+    this.dFloor = new Float32Array(DROPS); // the height each droplet falls back into
     this.nextDrop = 0;
     this.dGeo = new THREE.BufferGeometry();
     this.dGeo.setAttribute('position', new THREE.BufferAttribute(this.dPos, 3));
-    this.dMat = new THREE.PointsMaterial({ color: 0xf2fbff, size: 0.3, map: glowTexture(0xeaf7ff),
-      transparent: true, opacity: 0.9, depthWrite: false, fog: false });
+    this.dMat = new THREE.PointsMaterial({ color: 0xf2fbff, size: 0.26, map: glowTexture(0xeaf7ff),
+      transparent: true, opacity: 0.9, depthWrite: false });
     this.drops = new THREE.Points(this.dGeo, this.dMat);
     this.drops.frustumCulled = false;
     this.scene.add(this.drops);
@@ -59,7 +60,8 @@ export class SplashFx {
   }
 
   // n droplets thrown up from (x, y, z) at `speed`, spread sideways by `spread`.
-  drop(x, y, z, n, speed, spread = 1) {
+  // floor: the height they land at and vanish (the water line, or the ground under a drip).
+  drop(x, y, z, n, speed, spread = 1, floor = y - 0.12) {
     for (let k = 0; k < n; k++) {
       const i = this.nextDrop = (this.nextDrop + 1) % DROPS, j = i * 3;
       const a = Math.random() * Math.PI * 2, r = Math.random() * 0.5 + 0.1;
@@ -71,6 +73,7 @@ export class SplashFx {
       this.dVel[j + 1] = speed * (0.7 + Math.random() * 0.8);
       this.dVel[j + 2] = Math.sin(a) * out;
       this.dLife[i] = 0.5 + Math.random() * 0.8;
+      this.dFloor[i] = floor;
     }
   }
 
@@ -79,7 +82,7 @@ export class SplashFx {
     const p = Math.min(3, 0.45 + power * 0.14);
     this.ring(x, y, z, 1.8 + p * 1.5, Math.min(0.8, 0.34 + p * 0.2));
     this.ring(x, y, z, 0.9 + p * 0.7, Math.min(0.62, 0.26 + p * 0.16));
-    this.drop(x, y, z, Math.round(12 + p * 26), 1.9 + power * 0.46, 0.6 + p * 0.16);
+    this.drop(x, y, z, Math.round(12 + p * 26), Math.min(6.4, 1.9 + power * 0.3), 0.42 + p * 0.1);
     const puffs = Math.round(2 + p * 3);
     for (let i = 0; i < puffs; i++) {
       const a = Math.random() * Math.PI * 2, r = Math.random() * p * 0.8;
@@ -124,6 +127,7 @@ export class SplashFx {
       p[j] += v[j] * dt;
       p[j + 1] += v[j + 1] * dt;
       p[j + 2] += v[j + 2] * dt;
+      if (p[j + 1] < this.dFloor[i]) { this.dLife[i] = 0; p[j + 1] = -1e5; } // fell back in
     }
     this.dGeo.attributes.position.needsUpdate = true;
   }

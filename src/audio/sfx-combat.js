@@ -2,7 +2,7 @@
 // explosion(size) scales continuously from a rock cracking (0) to a capital ship going up (1):
 // the big end gets real low-end weight, a delayed second rumble and a long reverberant tail.
 import { layer, vary, clamp } from './dsp.js';
-import { place } from './voices.js';
+import { cue, place } from './voices.js';
 
 const midiHz = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -33,7 +33,7 @@ function boom(k, P, s) {
   layer(k, { type: 'sine', f0: 44 * p, f1: 17, dur: 1.2 + s * 1.6, gain: 0.35 * s * P.g, attack: 0.08, wet });
   layer(k, { noise: 1, filter: 'lowpass', ff0: 500, ff1: 40, dur: 1.4 + s * 1.4, gain: 0.3 * s * P.g,
     attack: 0.12, rate: 0.5, delay: 0.18 + s * 0.1, wet, echo: 0.25, lp: P.lp });
-  debris(k, P, s);
+  if (P.detail) debris(k, P, s);
 }
 
 export const CombatSfx = {
@@ -42,14 +42,16 @@ export const CombatSfx = {
     if (!this.live) return;
     const s = clamp(size, 0, 1);
     const big = s > 0.55;
-    if (!this.voices.take(big ? 'boom' : 'pop', big ? 4 : 2, big ? 45 : 30, big ? 2600 : 700)) return;
-    boom(this.kit, place(this.kit, at), s);
+    const P = cue(this, at, big ? 'boom' : 'pop', big ? 4 : 2, big ? 45 : 30, big ? 2600 : 700);
+    if (P) boom(this.kit, P, s);
   },
 
   // Hull hit: a dull metallic clank with a little weight behind it.
   hit(at) {
-    if (!this.live || !this.voices.take('hit', 2, 20, 200)) return;
-    const k = this.kit, P = place(k, at), p = vary(0.14);
+    if (!this.live) return;
+    const P = cue(this, at, 'hit', 2, 20, 200);
+    if (!P) return;
+    const k = this.kit, p = vary(0.14);
     layer(k, { noise: 1, filter: 'highpass', ff0: 5500, dur: 0.012, gain: 0.07 * P.g, attack: 0.001, lp: P.lp });
     layer(k, { type: 'sine', f0: 1700 * p, f1: 900, fm: 2500 * p, index: 600, indexDur: 0.04, dur: 0.07,
       gain: 0.085 * P.g, attack: 0.001 });
@@ -59,14 +61,17 @@ export const CombatSfx = {
 
   // Shield hit: electric, ringing, nothing like the hull clank.
   shieldHit(at) {
-    if (!this.live || !this.voices.take('shield', 2, 25, 300)) return;
-    const k = this.kit, P = place(k, at), p = vary(0.1);
+    if (!this.live) return;
+    const P = cue(this, at, 'shield', 2, 25, 300);
+    if (!P) return;
+    const k = this.kit, p = vary(0.1);
     layer(k, { noise: 1, filter: 'bandpass', ff0: 3400 * p, ff1: 1100, q: 9, dur: 0.2, gain: 0.2 * P.g,
       attack: 0.002, rate: 2, wet: P.wet * 3, lp: P.lp });
     layer(k, { type: 'sawtooth', f0: 1400 * p, f1: 400, detune: 20, dur: 0.17, gain: 0.05 * P.g,
       attack: 0.002, grit: 1 });
     layer(k, { type: 'sine', f0: 2600 * p, fm: 3900, index: 400, dur: 0.15, gain: 0.03 * P.g,
       attack: 0.004, wet: P.wet * 3 });
+    if (!P.detail) return; // the sparkles never carry across a battlefield
     for (let i = 0; i < 3; i++) {
       layer(k, { noise: 1, filter: 'highpass', ff0: 7000, dur: 0.018, gain: 0.07 * P.g, attack: 0.001,
         delay: 0.02 + Math.random() * 0.13, lp: P.lp });
@@ -77,8 +82,9 @@ export const CombatSfx = {
   kill(size = 0.6, at) {
     if (!this.live) return;
     this.explosion(size, at);
-    if (!this.voices.take('kill', 3, 120, 900)) return;
-    const k = this.kit, P = place(k, at);
+    const P = cue(this, at, 'kill', 3, 120, 900);
+    if (!P) return;
+    const k = this.kit;
     [88, 83].forEach((m, i) => {
       layer(k, { type: 'triangle', f0: midiHz(m), dur: 0.22, gain: 0.07 * P.g, attack: 0.005,
         delay: 0.06 + i * 0.1, wet: P.wet * 2.5 });
@@ -89,8 +95,10 @@ export const CombatSfx = {
 
   // Bright pickup blip.
   pickup(at) {
-    if (!this.live || !this.voices.take('pick', 2, 40, 300)) return;
-    const k = this.kit, P = place(k, at);
+    if (!this.live) return;
+    const P = cue(this, at, 'pick', 2, 40, 300);
+    if (!P) return;
+    const k = this.kit;
     layer(k, { type: 'triangle', f0: 880, f1: 1760, dur: 0.12, gain: 0.1 * P.g, attack: 0.004 });
     layer(k, { type: 'sine', f0: 1320, f1: 1980, dur: 0.16, gain: 0.05 * P.g, attack: 0.004, delay: 0.06, wet: P.wet * 2 });
     layer(k, { noise: 1, filter: 'highpass', ff0: 6000, dur: 0.02, gain: 0.03 * P.g, attack: 0.001, lp: P.lp });

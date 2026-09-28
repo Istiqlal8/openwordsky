@@ -36,7 +36,8 @@ export class BaseCollide {
 }
 
 function pushFromWall(f, w) {
-  if (f.y > w.y + WALL_H || f.y + 1.8 < w.y) return false;
+  const top = w.y + (pieceOf(w.type).solidH ?? WALL_H);
+  if (f.y > top || f.y + 1.8 < w.y) return false;
   const along = w.rot % 2 === 0; // wall runs along X
   const du = along ? f.x - w.x : f.z - w.z;      // along the wall
   const dn = along ? f.z - w.z : f.x - w.x;      // across it

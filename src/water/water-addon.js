@@ -32,6 +32,7 @@ export class WaterWorld {
     this.dripT = 0;
     this.dripAcc = 0;
     this.strokeT = 0;
+    this.underT = 0;
     this.swamOnce = false;
   }
 
@@ -40,6 +41,7 @@ export class WaterWorld {
     const s = this.ctx.surface;
     this.state.update(s);
     this.transitions(s, alive);
+    this.underT = this.state.submerged ? this.underT + dt : 0;
     this.pose.apply(dt, s, this.state, s.moveSpeed > 0);
     this.aimCamera(dt, s);
     this.ambient(dt, s);
@@ -55,7 +57,8 @@ export class WaterWorld {
     if (st.entered) this.enter(s, st.entered);
     if (st.left) this.leave();
     if (st.dived) this.screen.splashed(0.6);
-    if (st.surfaced) {
+    // A swimmer bobs through the swell constantly; only a real dive earns a gasp.
+    if (st.surfaced && this.underT > 0.45) {
       this.sound.gasp();
       this.screen.splashed(1);
       this.splash.splash(f.x, st.surfaceY, f.z, 2.6);
@@ -89,7 +92,9 @@ export class WaterWorld {
     this.bubbles.update(dt, _b, st.submerged ? (moving ? 10 : 4) : 0);
     if (st.submerged) this.sound.bubbles(dt);
     this.drip(dt, s);
-    const camD = this.camDepth(s), k = clamp01(camD / 0.4);
+    // A ship cockpit or the submarine is sealed: no visor wash, no muffling in there.
+    const sealed = s.flying || Boolean(s.vehicle?.active);
+    const camD = sealed ? 0 : this.camDepth(s), k = clamp01(camD / 0.4);
     this.screen.update(dt, k, Math.max(0, camD));
     this.sound.setMuffle(k);
   }
@@ -107,8 +112,8 @@ export class WaterWorld {
     if ((this.dripAcc += dt) < 0.07) return;
     this.dripAcc = 0;
     const shaking = this.pose.shaking;
-    this.splash.drop(s.feet.x, s.feet.y + 0.5 + Math.random() * 1.1, s.feet.z,
-      shaking ? 4 : 2, shaking ? 1.2 : 0.25, shaking ? 2.6 : 0.9);
+    this.splash.drop(s.feet.x, s.feet.y + 0.45 + Math.random() * 1.15, s.feet.z,
+      shaking ? 5 : 2, shaking ? 0.85 : 0.18, shaking ? 1.1 : 0.5, s.feet.y - 0.05);
   }
 
   // Wave height at any x/z on this planet's sea.

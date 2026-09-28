@@ -23,6 +23,7 @@ import { huntTrophy } from '../quest/materials.js';
 import { gatherFromAnimal } from '../gameplay/animal-gather.js';
 import { NpcBadges, explorerNear } from '../npc/npc-badges.js';
 import { OceanLink } from '../ocean/ocean-link.js';
+import { basePlaces } from '../build/hub.js';
 
 export const SURFACE_HINTS = [['W A S D', 'Jalan'], ['Shift', 'Lari'], ['Space', 'Lompat / jetpack'], ['Klik\u00a0kiri', 'Tambang / Tembak'], ['1–7', 'Senjata'],
   ['Klik\u00a0kanan', 'Tembak'], ['G / T', 'Isi suit / Interaksi'], ['Q', 'Ambil hasil hewan'], ['J / L', 'Misi / Koleksi'], ['U / O', 'Racik / Kargo'],
@@ -239,6 +240,7 @@ export class SurfaceMode {
     if (c) out.push({ x: c.x, z: c.z, color: '#7dffb2' });
     out.push(...this.villages.places());
     out.push(...this.trade.places());
+    out.push(...basePlaces()); // the player's own base (src/build/)
     const site = this.aliens.site;
     if (site) out.push({ x: site.position.x, z: site.position.z, color: '#ffd166' });
     const r = this.ruins.nearest(this.surface.feet);

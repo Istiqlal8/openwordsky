@@ -1,17 +1,23 @@
 // Screen-space half of the water feel: a blue-green wash and vignette that deepens as the
 // player sinks, and the beads of water left on the visor after surfacing or wading out.
 // One DOM layer under the HUD (z-index 9); styling lives in src/ui/water.css.
-const BEADS = 22;
-const WET_TIME = 2.6;
+const BEADS = 34;
+const WET_TIME = 2.2;
+
+// Water clings to the rim of a visor, not the middle of the view: every bead hugs one edge.
+const rim = () => (Math.random() < 0.5 ? Math.random() * 19 : 81 + Math.random() * 19);
+const beadSpot = () => (Math.random() < 0.5
+  ? { left: Math.random() * 100, top: rim() }
+  : { left: rim(), top: Math.random() * 100 });
 
 function bead() {
   const b = document.createElement('i');
-  const s = 6 + Math.random() * 26;
-  b.style.left = `${Math.random() * 100}%`;
-  b.style.top = `${Math.random() * 100}%`;
+  const s = 5 + Math.random() * 14, at = beadSpot();
+  b.style.left = `${at.left}%`;
+  b.style.top = `${at.top}%`;
   b.style.width = `${s}px`;
-  b.style.height = `${s * (0.7 + Math.random() * 0.6)}px`;
-  b.style.animationDelay = `${(Math.random() * 1.6).toFixed(2)}s`;
+  b.style.height = `${s * (0.7 + Math.random() * 0.7)}px`;
+  b.style.animationDelay = `${(Math.random() * 0.9).toFixed(2)}s`;
   return b;
 }
 
@@ -32,9 +38,12 @@ export class WaterScreen {
     this.shownWet = -1;
   }
 
-  // Water splashed over the visor: 0..1 strength.
+  // Water splashed over the visor: 0..1 strength. Restarts the run-off animation.
   splashed(strength = 1) {
     this.wetT = Math.max(this.wetT, WET_TIME * Math.min(1, strength));
+    this.wet.classList.remove('is-run');
+    void this.wet.offsetWidth; // one reflow per splash, so the beads replay from the top
+    this.wet.classList.add('is-run');
   }
 
   // k: 0 = head out, 1 = well under. depth: metres below the surface, for the vignette.
@@ -43,7 +52,7 @@ export class WaterScreen {
     const tint = Math.min(0.92, k * (0.42 + Math.min(0.5, depth * 0.045)));
     this.write(this.tint, 'shownTint', tint);
     this.root.classList.toggle('is-under', k > 0.5);
-    const w = Math.min(1, this.wetT / WET_TIME) * (1 - k * 0.8);
+    const w = Math.min(1, this.wetT / WET_TIME) * 0.85 * (1 - k * 0.8);
     this.write(this.wet, 'shownWet', w);
   }
 

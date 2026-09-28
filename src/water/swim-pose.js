@@ -83,8 +83,9 @@ export class SwimPose {
     const fade = Math.max(0, this.shake / SHAKE);
     if (this.shake <= 0) { this.clear(fig); return; }
     this.blend *= Math.max(0, 1 - dt * 6);
-    fig.group.rotation.set(0, Math.sin((SHAKE - this.shake) * 34) * 0.17 * fade, 0);
-    fig.group.position.y = Math.abs(Math.sin((SHAKE - this.shake) * 22)) * 0.05 * fade;
+    const t = SHAKE - this.shake;
+    fig.group.rotation.set(0, Math.sin(t * 30) * 0.33 * fade, Math.sin(t * 15) * 0.07 * fade);
+    fig.group.position.y = Math.abs(Math.sin(t * 20)) * 0.07 * fade;
   }
 
   clear(fig) {

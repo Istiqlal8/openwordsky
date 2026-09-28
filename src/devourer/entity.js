@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Rng } from '../core/rng.js';
 import { glowTexture } from '../assets/textures.js';
+import { readyModel, cloneModel, tintedMaterial } from '../view/life/models/model-cache.js';
 
 export const CORE_R = 520;
 export const SPAN = 3400;             // spine tips: the silhouette is ~6,800 units wide
@@ -90,6 +91,27 @@ export class DevourerEntity {
     this.greebles = new THREE.Group();
     this.greebles.add(rings.group, this.spines);
     this.group.add(this.core, this.maw, this.mawGlow, this.greebles);
+    this.model = null;
+    this.swapIn(); // the shapes above stand in until the sculpted model has loaded
+  }
+
+  // Replaces the placeholder core and maw ring with the sculpted devourer model. The rings,
+  // spines and shield nodes stay: the battle's hitboxes are measured against CORE_R and NODE_R.
+  swapIn() {
+    if (this.model) return true;
+    const tpl = readyModel('devourer');
+    if (!tpl) return false;
+    this.modelMat = tintedMaterial(tpl, 0xff7a2a, 0.35);
+    this.modelMat.emissive = new THREE.Color(0xff5a1e);
+    this.modelMat.emissiveIntensity = 0.7; // it sits in its own shadow inside the spine crown
+    this.model = cloneModel(tpl, this.modelMat);
+    const s = CORE_R * 3.4; // normalized to height 1; this gives it the old core's visual mass
+    this.model.scene.scale.setScalar(s);
+    this.model.scene.position.y = -s * 0.5; // feet-at-origin model, recentred on the core
+    this.model.scene.rotation.y = Math.PI / 2; // its mouth (+X) onto this group's maw axis (-Z)
+    this.group.add(this.model.scene);
+    for (const o of [this.core, this.maw, this.mawGlow]) o.visible = false;
+    return true;
   }
 
   buildNodes() {
@@ -147,6 +169,10 @@ export class DevourerEntity {
   // phase drives the colour temperature: blue-white shielded, orange open, red-hot enraged.
   setPhase(phase) {
     const hot = phase === 'enraged' || phase === 'collapse';
+    if (this.modelMat) {
+      this.modelMat.emissive.set(hot ? 0xff2e12 : 0xff5a1e);
+      this.modelMat.emissiveIntensity = hot ? 1.6 : 0.7;
+    }
     this.hull.emissive.set(hot ? 0x7a1206 : 0x4a1409);
     this.hull.emissiveIntensity = hot ? 1.8 : 0.95;
     this.limb.emissive.set(hot ? 0xc42a0a : 0x862c0e);
@@ -158,6 +184,7 @@ export class DevourerEntity {
   update(dt, camPos, intensity = 1) {
     this.time += dt;
     const t = this.time;
+    this.swapIn();
     this.group.rotation.z += dt * 0.008;
     for (const r of this.rings) r.mesh.rotation.z += r.spin * dt;
     const pulse = 0.6 + 0.4 * Math.sin(t * (this.phase === 'enraged' ? 4.5 : 1.6));
@@ -178,6 +205,7 @@ export class DevourerEntity {
     });
     this.hull.dispose();
     this.limb.dispose();
+    this.modelMat?.dispose();
     this.glowMat.dispose();
     this.nodeMat.dispose();
     this.shell.material.dispose();

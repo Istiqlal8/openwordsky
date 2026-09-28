@@ -1,11 +1,12 @@
-// Ribbon left behind the beam saber. Lives inside the mech's own group, so the trail rides along
-// with the mech while it flies; samples are taken in that local space. Allocation-free per frame.
+// Motion ribbon behind the beam saber — a supporting smear, not the blade itself, so it is kept
+// well under the solid blade's brightness. Lives inside the mech's own group, so the trail rides
+// along with the mech while it flies; samples are taken in that local space. Allocation-free.
 import * as THREE from 'three';
 
 const SEG = 16;
 
 export class BladeTrail {
-  constructor(parent, color) {
+  constructor(parent, color, opacity = 0.85) {
     const n = SEG * 2;
     this.raw = new Float32Array(n * 3);
     this.pos = new Float32Array(n * 3);
@@ -17,7 +18,8 @@ export class BladeTrail {
       idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
     geo.setIndex(idx);
-    this.mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+    this.peak = opacity;
+    this.mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide,
       depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
     this.mesh = new THREE.Mesh(geo, this.mat);
     this.mesh.frustumCulled = false;
@@ -40,7 +42,7 @@ export class BladeTrail {
     this.mesh.visible = this.count > 2;
     this.geo.attributes.position.needsUpdate = true;
     this.geo.setDrawRange(0, Math.max(0, (this.count - 1) * 6));
-    this.mat.opacity = 0.85;
+    this.mat.opacity = this.peak;
   }
 
   // Older samples pull their tip back toward the hilt so the ribbon narrows to a point.

@@ -60,7 +60,7 @@ export class MechAim {
     this.mix = Math.min(1, this.mix + dt * 7);
     const t = this.mix * this.mix * (3 - 2 * this.mix);
     for (let i = 0; i < 10; i++) this.blend[i] = this.prev[i] + (this.cur[i] - this.prev[i]) * t;
-    this.twistTick(dt, ctl);
+    this.twistTick(dt, ctl, pose);
     if (this.aimT < 0.01) { pose.brace = 0; pose.crouch = 0; return; }
     this.arms(ctl);
     this.body(dt, pose, ctl);
@@ -69,9 +69,10 @@ export class MechAim {
   // mech-space.js blades the whole frame so the chase camera sees the mech three-quarter instead
   // of straight up its back. The torso unwinds only part of that; the wrist takes the rest, which
   // keeps the barrel on the aim line while the body stays angled and readable.
-  twistTick(dt, ctl) {
+  twistTick(dt, ctl, pose) {
     const yaw = ctl.bodyYaw ?? 0;
-    const want = this.blend[6] * this.aimT - (ctl.yawErr ?? 0) * 0.55 - yaw * 0.3 - this.r * 0.3;
+    const want = this.blend[6] * this.aimT - (ctl.yawErr ?? 0) * 0.55 - yaw * 0.3 - this.r * 0.3
+      + (pose?.lean ?? 0);   // the flight pose twists the shoulders into a lateral break
     this.twist = approach(this.twist, want, dt, 9);
     this.mech.torso.rotation.y = this.twist;
     this.mech.head.rotation.y = -(this.twist + yaw) * 0.75;

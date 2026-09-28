@@ -9,7 +9,7 @@ import { part } from '../view/ship/ship-materials.js';
 import { block, rod } from './mech-geo.js';
 import { BAZOOKA, POD } from './mech-weapons.js';
 
-const STOW = 1.42;               // pivot pitch when folded flat along the shoulder
+const STOW = 2.55;               // pivot pitch when folded back flat along the shoulder
 const RATE = 3.6;                // deploy speed: about a third of a second, and visibly mechanical
 
 function buildTube(pr, mats, x, y) {
@@ -24,7 +24,7 @@ function buildTube(pr, mats, x, y) {
 function buildPod(m, mats, side) {
   const pr = m.d.padR;
   const root = new THREE.Group();
-  root.position.set(side * pr * 0.3, pr * 1.35, pr * 0.15);
+  root.position.set(side * pr * 0.34, pr * 1.02, pr * 0.2);
   const pivot = new THREE.Group();
   root.add(pivot);
   pivot.add(part(block(pr * 1.5, pr * 2.5, pr * 1.6, 0.86, 6), mats.hull, 0, 0, -pr * 0.2));
@@ -47,9 +47,14 @@ function buildPod(m, mats, side) {
 
 // -> the pair plus the little state machine that deploys them. Nothing allocates per frame.
 export function buildShoulderPods(m, mats) {
-  const pods = [-1, 1].map((side) => buildPod(m, mats, side));
+  const api = podApi([-1, 1].map((side) => buildPod(m, mats, side)));
+  api.update(1, 0);
+  return api;
+}
+
+function podApi(pods) {
   const api = {
-    pods, t: 0, want: 0, side: 1, mode: null,
+    pods, t: 0, want: 0, side: 1, shot: 0, mode: null,
     get deployed() { return api.t > 0.55; },
     get firing() { return api.deployed && api.mode === BAZOOKA; },
 
@@ -67,7 +72,7 @@ export function buildShoulderPods(m, mats) {
       for (const p of pods) {
         p.pivot.rotation.x = STOW * (1 - e);
         p.pivot.rotation.z = p.side * 0.22 * (1 - e);
-        p.cap.rotation.x = -Math.max(0, e * 1.35 - 0.35) * 1.9;
+        p.cap.rotation.x = -STOW * (1 - e) - Math.max(0, e * 1.35 - 0.35) * 1.75;
         p.root.visible = api.t > 0.004;
       }
     },
@@ -90,9 +95,7 @@ export function buildShoulderPods(m, mats) {
 
     dispose() { for (const p of pods) p.root.removeFromParent(); },
   };
-  api.shot = 0;
   const step = api.next;
   api.next = () => { step(); if (api.side === 1) api.shot = (api.shot + 1) % 4; };
-  api.update(1, 0);
   return api;
 }

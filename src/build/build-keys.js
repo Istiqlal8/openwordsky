@@ -1,11 +1,16 @@
-// Build-mode key capture. While build mode is on, number keys, R, X, Enter, the wheel and a
-// locked-mouse left click are caught before the game's Input sees them, so they pick/rotate/
-// place pieces instead of switching weapons or firing the mining beam.
+// Build-mode key capture. While build mode is on, these keys, the wheel and a locked-mouse
+// left click are caught before the game's Input sees them, so they pick/rotate/paint/place
+// pieces instead of switching weapons, gathering or firing the mining beam.
 import { hub } from './hub.js';
+
+const OPS = {
+  KeyR: 'rotate', KeyX: 'remove', KeyC: 'paint', KeyZ: 'undo', KeyQ: 'prevCat', KeyE: 'nextCat',
+  Enter: 'place', NumpadEnter: 'place', Escape: 'exit',
+};
 
 export class BuildKeys {
   constructor() {
-    this.queue = []; // { op: 'pick'|'cycle'|'rotate'|'place'|'remove'|'exit', n? }
+    this.queue = []; // { op: 'pick'|'cycle'|'rotate'|'place'|'remove'|'paint'|'undo'|'cat'|'exit', n? }
     this.onKey = (e) => this.key(e);
     this.onMouse = (e) => this.mouse(e);
     this.onWheel = (e) => this.wheel(e);
@@ -17,15 +22,14 @@ export class BuildKeys {
   key(e) {
     if (!hub.active || e.repeat) return;
     const c = e.code;
-    let op = null;
-    if (/^Digit[0-9]$/.test(c)) op = { op: 'pick', n: (Number(c[5]) + 9) % 10 };
-    else if (c === 'KeyR') op = { op: 'rotate' };
-    else if (c === 'KeyX') op = { op: 'remove' };
-    else if (c === 'Enter' || c === 'NumpadEnter') op = { op: 'place' };
-    else if (c === 'Escape') op = { op: 'exit' };
+    const op = /^Digit[0-9]$/.test(c) ? { op: 'pick', n: (Number(c[5]) + 9) % 10 }
+      : OPS[c] === 'prevCat' ? { op: 'cat', n: -1 }
+        : OPS[c] === 'nextCat' ? { op: 'cat', n: 1 }
+          : OPS[c] ? { op: OPS[c] } : null;
     if (!op) return;
     this.queue.push(op);
     e.stopPropagation();
+    if (c !== 'Escape') e.preventDefault();
   }
 
   mouse(e) {

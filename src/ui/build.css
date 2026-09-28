@@ -1,4 +1,4 @@
-/* Base building: build-mode bar (Y). */
+/* Base building: build-mode bar (Y) and the station list panels. */
 .bd-bar {
   position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 7;
   width: max(min(700px, calc(100vw - 580px)), min(calc(100vw - 32px), 340px)); display: grid; gap: 6px; pointer-events: auto;
@@ -19,3 +19,8 @@
 .bd-ops { display: none; gap: 6px; justify-content: flex-end; }
 .is-touch .bd-ops { display: flex; }
 .hud:has(.bd-bar:not(.is-hidden)) .q-tracker { display: none; }
+.bd-list-panel {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8;
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 140px);
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 8px; pointer-events: auto;
+}

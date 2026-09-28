@@ -167,6 +167,7 @@ export class MechSpaceGuns extends MechGuns {
     if (dist >= range - 0.5) return;
     pose.saberImpact();
     saberHitSfx(this.sfx);
+    this.fx?.flash(_to, _aim, this.unit * 0.1, 0xffffff, 0.14);   // white bite at the contact point
     this.onShake?.(0.4);
     _to.copy(_from).addScaledVector(_aim, dist);
     this.combat?.fx?.explode(_to, { color: SABER_MODE.color, size: 0.8, debris: false });

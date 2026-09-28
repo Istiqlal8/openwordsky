@@ -7,6 +7,7 @@ import { wirePlayerEvents } from './game/player-events.js';
 
 const app = createApp();
 const flow = new Flow(app);
+app.flow = flow; // meta addons that travel between planets (src/build/travel.js)
 attachOverlays(app, flow);
 const loop = new FrameLoop(app, flow);
 const { game, save, input, hud, sfx, player, space, surface, gas, spaceMode, surfaceMode, death, renderer } = app;

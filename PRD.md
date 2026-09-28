@@ -132,7 +132,14 @@ Added in v1.5:
   transform fee and the 5/s / 4.2/s drain. It reuses the ship's hull/shield, and the usual death
   and respawn flow applies.
 
-Out of scope: crafting trees, multiplayer, trading, base building.
+- **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
+  then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,
+  fences and decor, plus manual stations: a planter you sow and harvest with `T`, a pen you lure a
+  tamed animal into, a workbench that opens the craft panel, a locker you fill by hand, a landing
+  pad for your ship and a teleport pad that jumps between your bases for 40 Nanit. Pieces snap to
+  what is already built, can be painted, and nothing in a base ever produces on its own.
+
+Out of scope: crafting trees, multiplayer, trading.
 
 ## 3. Controls
 | Key | Space | Surface |
@@ -156,6 +163,7 @@ Out of scope: crafting trees, multiplayer, trading, base building.
 | U | craft / market | craft / market |
 | L | collection book | collection book |
 | O | — | cargo board |
+| Y | fleet board | build mode (1–0 / Q E pick, R rotate, C paint, X remove, Z undo) |
 | Tab / I | inventory | inventory |
 | ` | settings menu | settings menu |
 | . | ship ⇄ mech | ship ⇄ mech (on foot near the ship, or while flying it) |

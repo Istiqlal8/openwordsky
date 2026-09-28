@@ -32,7 +32,7 @@ const _b = new THREE.Vector3();
 export class SaberCombo {
   constructor(mech) {
     this.mech = mech;
-    this.trail = new BladeTrail(mech.group, mech.mats.glow.color?.getHex?.() ?? 0xffffff);
+    this.trail = new BladeTrail(mech.group, mech.mats.glow.color?.getHex?.() ?? 0xffffff, 0.2);
     this.pose = REST.slice();
     this.step = -1;
     this.t = 0;

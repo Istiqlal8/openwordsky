@@ -183,8 +183,11 @@ export class MechSurfaceGuns extends MechGuns {
     this.mech.saberTip(_to);
     const radius = s.radius[step] ?? s.radius[0];
     this.hits.splash(_to, radius, s.damage[step]);
-    this.ctx.fx?.sparks(_to, SABER_MODE.color, 18, this.unit * 0.16);
-    this.ctx.fx?.explode(_to, { color: SABER_MODE.color, size: 0.7, debris: false });
+    this.mech.saberBase(_from);
+    _dir.subVectors(_to, _from).normalize();
+    this.fx?.flash(_to, _dir, this.unit * 0.1, 0xffffff, 0.14);   // white bite at the contact point
+    this.ctx.fx?.sparks(_to, SABER_MODE.color, 24, this.unit * 0.2);
+    this.ctx.fx?.explode(_to, { color: SABER_MODE.color, size: 0.9, debris: false });
     pose.saberImpact();
     saberHitSfx(this.ctx.sfx);
     this.onShake?.(0.35);
