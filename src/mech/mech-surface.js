@@ -32,8 +32,6 @@ export class MechSurface {
     this.tr = new Transform();
     this.cam = new MechCamera();
     this.att = new FlightAttitude();
-    this.fwd = 0;
-    this.side = 0;
     this.env = { speed: 0, runSpeed: RUN, airborne: false, root: this.pos, cos: 1, sin: 0,
       groundAt: null, fwd: 1, side: 0 };
   }
@@ -107,12 +105,10 @@ export class MechSurface {
     this.mech?.group.removeFromParent();
     this.morph?.dispose();
     this.morph = null;
+    this.att.reset();
     this.pose?.dispose();
     this.guns?.dispose();
-    this.guns = null;
-    this.mech = null;
-    this.ctx = null;
-    this.view = null;
+    this.guns = this.mech = this.ctx = this.view = null;
     this.active = false;
     this.tr.finish(false);
   }
@@ -192,10 +188,8 @@ export class MechSurface {
     this.pos.x += (-sin * f + cos * r) * speed * dt;
     this.pos.z += (-cos * f - sin * r) * speed * dt;
     this.env.speed = len > 0 ? speed : 0;
-    this.env.fwd = len > 0 ? f : 1;   // unit movement direction in the mech's own frame
-    this.env.side = len > 0 ? r : 0;
-    this.fwd = f * speed;             // signed, in the frame's own axes: what the attitude leans into
-    this.side = r * speed;
+    this.env.fwd = len > 0 ? f : 1;   // unit movement direction in the mech's own frame: the gait
+    this.env.side = len > 0 ? r : 0;  // and the flight attitude both lean on it
     this.gravity(dt, input, s);
     this.heading = turnToward(this.heading, s.yaw, dt * TURN);
   }
@@ -234,7 +228,8 @@ export class MechSurface {
     this.env.cos = Math.cos(this.heading);
     this.env.sin = Math.sin(this.heading);
     const air = this.env.airborne || this.dropJets > 0;
-    this.att.update(dt, { fwd: air ? this.fwd : 0, side: this.side, climb: this.velY,
+    const e = this.env;
+    this.att.update(dt, { fwd: air ? e.fwd * e.speed : 0, side: e.side * e.speed, climb: this.velY,
       cap: RUN * 0.8, boost: this.jets, air,
       turn: yawGap(this.heading, this.lastYaw ?? this.heading) / Math.max(dt, 0.01) });
     this.lastYaw = this.heading;
@@ -303,5 +298,5 @@ function yawGap(a, b) {
 // Shortest-way yaw follow.
 const turnToward = (a, b, k) => a + yawGap(b, a) * Math.min(1, k);
 
-const IDLE = { down: () => false, pressed: () => false, mouseDown: () => false, clicked: () => false,
-  mouse: { dx: 0, dy: 0 }, locked: false };
+const NO = () => false;
+const IDLE = { down: NO, pressed: NO, mouseDown: NO, clicked: NO, mouse: { dx: 0, dy: 0 }, locked: false };

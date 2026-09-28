@@ -69,7 +69,7 @@ export class MechPose {
     m.torso.rotation.z = Math.sin(this.hover * 0.71) * 0.026 * still - lat * 0.1;
     m.hips.rotation.y = approach(m.hips.rotation.y, lat * 0.38, dt, 7);
     this.lean = -lat * 0.46;                              // mech-aim.js twists the shoulders back
-    m.setBinders?.(Math.abs(lat) * 0.5);
+    m.setWings?.(dt, Math.abs(lat) * 0.6 + this.back * 0.4, this.move * (0.3 + this.run * 0.7), 0);
     m.hips.position.y = this.d.hipY + this.bob + sway * this.d.hipY * 0.008 - Math.abs(lat) * this.d.hipY * 0.03;
   }
 
@@ -140,7 +140,7 @@ export class MechPose {
     this.flyArms(dt, drive, boost, sway, lat);
     this.lean = -lat * 0.6;                     // mech-aim.js twists the shoulders onto it
     this.mech.hips.rotation.y = approach(this.mech.hips.rotation.y, lat * 0.32, dt, 6);
-    this.mech.setBinders?.(att ? att.splay : 0);
+    this.mech.setWings?.(dt, att ? att.splay : 0, drive, boost);
     const t = this.mech.torso;
     t.rotation.x = approach(t.rotation.x, 0.12 + drive * 0.34 + boost * 0.16 - this.crouch * 0.3 + sway * 0.03 * idle, dt, 4);
     t.rotation.z = roll * 0.035 * idle * (1 - this.aimT);

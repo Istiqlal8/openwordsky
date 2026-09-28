@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { shipMaterials } from '../view/ship/ship-materials.js';
 import { setFlames } from '../view/ship/ship-engines.js';
 import { buildChest, buildPelvis, buildHead, buildArm, buildLeg } from './mech-parts.js';
-import { buildBackpack, buildCalfThruster } from './mech-gear.js';
+import { buildBackpack, buildCalfThruster, nozzle } from './mech-gear.js';
+import { buildWings } from './mech-wings.js';
 import { buildBlade } from './mech-blade.js';
 import { buildRack } from './mech-weapon-gear.js';
 import { buildShoulderPods } from './mech-shoulder-pods.js';
@@ -59,6 +60,9 @@ export function buildMech(m) {
   const r = assemble(m, mats);
   const calf = r.legs.map((leg) => buildCalfThruster(m, mats, leg.shin));
   const flames = [...r.pack.flames, ...calf];
+  const wings = buildWings(m, mats, nozzle, flames);
+  for (const w of wings.wings) { w.root.name = 'mech-wing'; r.pack.group.add(w.root); }
+  for (const pivot of r.pack.binders) pivot.visible = false;   // the wings replace the flat binders
   const rack = buildRack(m, mats, r.arms[1].hand);
   const pods = buildShoulderPods(m, mats);
   r.arms.forEach((arm, i) => arm.group.add(pods.pods[i].root));
@@ -72,24 +76,20 @@ export function buildMech(m) {
   const base = { shoulderX: m.d.shoulderX, headY: r.head.position.y, hipY: m.d.hipY };
   const mech = {
     design: m, mats, group: r.root, hips: r.hips, torso: r.torso, head: r.head,
-    legs: r.legs, arms: r.arms, pack: r.pack, rack, pods, saber, flames, calf, base, deploy: 1, sheathed: false,
+    legs: r.legs, arms: r.arms, pack: r.pack, rack, pods, saber, wings, flames, calf, base, deploy: 1, sheathed: false,
   };
-  wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill });
+  wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill, wings });
   mech.setThrust(0);
   mech.setDeploy(1);
   return mech;
 }
 
 // The mech's public surface: what the pose, gun and transform code is allowed to ask of it.
-function wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill }) {
+function wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill, wings }) {
   mech.setWorldScale = (k) => { fill.distance = m.d.H * 2.6 * k; };
   // `boost` 0..1 stretches the plumes further than the flame curve alone allows, so a hard run
   // reads as a hard run rather than just a bright nozzle.
-  mech.setBinders = (k) => r.pack.binders.forEach((b, i) => {
-    const s = i ? 1 : -1;
-    b.rotation.z = s * k * 0.95;
-    b.rotation.y = -s * k * 0.55;
-  });
+  mech.setWings = (dt, spread, speed, boost) => wings.update(dt, spread, speed, boost);
   mech.setThrust = (t, boost = 0) => {
     setFlames(flames, THREE.MathUtils.clamp(t, 0, 1), mats);
     if (boost <= 0) return;
@@ -113,6 +113,7 @@ function wireMech(mech, { m, mats, r, rack, pods, saber, mount, flames, fill }) 
     disposeTree(r.root);
     for (const k in mats) mats[k].dispose?.();
     for (const k in saber.mats) saber.mats[k].dispose();
+    wings.dispose();
   };
 }
 
@@ -200,7 +201,7 @@ function fold(mech, t) {
   mech.head.rotation.set(-u * 0.6, u * 4.4, 0);      // the head spins up out of the chest
   mech.torso.rotation.set(u * 0.32, -u * 0.7, u * 0.3);
   mech.hips.position.y = lerp(b.hipY * 0.62, b.hipY, t);
-  for (const pivot of mech.pack.binders) pivot.rotation.x = -u * 1.35;
+  mech.wings.fold(t);          // thrown wide open as the frame stands up
 }
 
 // Height of the folded silhouette, used to line the transform up with the ship model.

@@ -154,10 +154,12 @@ function mount(bone, frame, atBone) {
 }
 
 // The model brings its own backpack, so only the ship's hardware stays: the thruster nozzles that
-// carry the flames and the wing binders cut from the ship's planform. The armour box goes.
+// carry the flames, and the wings. The armour box goes and the cluster shrinks; the wings do not.
 function slimPack(pack) {
-  for (const child of pack.children) if (child.isMesh) child.visible = false;
-  pack.scale.setScalar(0.72);
+  for (const child of pack.children) {
+    if (child.isMesh) child.visible = false;                   // the model brings its own backpack
+    else if (child.name !== 'mech-wing') child.scale.setScalar(0.72);
+  }
   return pack;
 }
 

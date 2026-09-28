@@ -29,7 +29,8 @@ export class GalaxyPanel {
 
   legend() {
     const box = el('div', 'gmap-legend');
-    const items = [['lg-current', 'Posisi'], ['lg-visited', 'Dikunjungi'], ['lg-selected', 'Dipilih'], ['lg-bh', 'Lubang hitam']];
+    const items = [['lg-current', 'Posisi'], ['lg-visited', 'Dikunjungi'], ['lg-selected', 'Dipilih'],
+      ['lg-bh', 'Lubang hitam'], ['lg-void', 'Makhluk raksasa']];
     for (const [cls, label] of items) {
       const row = el('span', 'lg');
       row.append(el('i', cls), el('span', null, label));

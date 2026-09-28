@@ -216,6 +216,7 @@ body { font-family: var(--body); font-size: 15px; -webkit-font-smoothing: antial
 .lg-visited { border: 1px solid var(--cyan); }
 .lg-bh { background: #000; border: 2px solid #ffa860; border-radius: 50%; }
 .lg-selected { border: 1px dashed var(--amber); border-radius: 0 !important; }
+.lg-void { background: rgba(150, 230, 255, 0.85); border-radius: 0 !important; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
 
 /* ---------- Animations ---------- */
 @keyframes blink { 50% { opacity: 0.45; } }

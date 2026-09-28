@@ -7,6 +7,7 @@ import {
   drawMarker, drawRoute, drawHome, pickSystem, toWorld,
 } from '../ui/galaxy-render.js';
 import { drawEventMarker } from '../devourer/map-marker.js';
+import { drawVoidFauna } from '../surprise/void-map-marker.js';
 
 const START_SCALE = 1.6;
 const MIN_SCALE = 0.25;
@@ -134,6 +135,7 @@ export class GalaxyMap {
     }
     drawCurrent(ctx, cam, this.current, time);
     drawHome(ctx, cam, this.systems[HOME]);
+    drawVoidFauna(ctx, cam, systems, this.visited, time);
     drawEventMarker(ctx, cam, systems, time);
   }
 

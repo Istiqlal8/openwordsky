@@ -5,7 +5,7 @@ import { part } from '../view/ship/ship-materials.js';
 import { block, blade, rod } from './mech-geo.js';
 
 // One nozzle whose local +Z is the exhaust direction (same layout as the ship's engines).
-function nozzle(r, len, mats) {
+export function nozzle(r, len, mats) {
   const g = new THREE.Group();
   g.add(part(rod(r, len, 10).rotateX(Math.PI / 2), mats.hull, 0, 0, -len * 0.5));
   g.add(part(new THREE.CylinderGeometry(r * 1.12, r * 0.9, r * 0.6, 12, 1, true).rotateX(Math.PI / 2), mats.dark, 0, 0, r * 0.2));
