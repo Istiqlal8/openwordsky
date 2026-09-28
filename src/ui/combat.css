@@ -135,3 +135,18 @@
   .vitals-panel { width: min(220px, calc(100vw - 32px)); }
   .vbar { grid-template-columns: 76px 1fr 26px; }
 }
+/* Clickable inventory + item details */
+.inv { pointer-events: auto; max-height: calc(100vh - 140px); overflow-y: auto; }
+button.inv-slot { font: inherit; color: inherit; cursor: pointer; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+button.inv-slot:hover { border-color: var(--amber, #ffb347); background: rgba(255,179,71,0.12); }
+.inv-detail { margin-top: 10px; padding: 10px; border-left: 2px solid var(--cyan, #6fe3ff); background: rgba(4,10,18,0.6); }
+.inv-d-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.inv-d-name { font-weight: 700; font-size: 16px; }
+.inv-d-cat { color: var(--cyan, #6fe3ff); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+.inv-d-count { margin-left: auto; color: var(--amber, #ffb347); font-weight: 700; }
+.inv-d-desc { margin: 4px 0 8px; color: var(--muted, #aab); font-size: 13px; }
+.inv-d-row { display: grid; grid-template-columns: 100px 1fr; gap: 8px; font-size: 13px; padding: 3px 0; }
+.inv-d-key { color: var(--muted, #aab); }
+.inv-d-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.inv-d-btn { font-size: 12px; padding: 5px 10px; pointer-events: auto; }
+.inv-d-status { margin-top: 6px; color: var(--amber, #ffb347); font-size: 13px; min-height: 1em; }

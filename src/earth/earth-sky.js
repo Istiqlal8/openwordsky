@@ -44,8 +44,8 @@ function cloudTexture() {
     const x = (i % S) / S, y = ((i / S) | 0) / S;
     let sum = 0, amp = 1, norm = 0;
     for (let o = 0, p = 4; o < 5; o++, p *= 2) { sum += tile(77 + o, x * p, y * p, p) * amp; norm += amp; amp *= 0.5; }
-    const v = Math.max(0, Math.min(1, (sum / norm - 0.5) * 4.2));
-    img.data.set([255, 255, 255, Math.round(v * v * 235)], i * 4);
+    const v = Math.max(0, Math.min(1, (sum / norm - 0.54) * 3.6));
+    img.data.set([255, 255, 255, Math.round(v * v * 215)], i * 4);
   }
   g.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(c);
@@ -89,11 +89,10 @@ export class EarthSky {
   }
 
   addMoon() {
-    const mat = this.own(new THREE.MeshStandardMaterial({ color: 0xd8d6d0, roughness: 1, fog: false,
-      emissive: 0x303038, emissiveIntensity: 1 }));
+    const mat = this.own(new THREE.MeshBasicMaterial({ color: 0xe8eef8, fog: false, transparent: true, opacity: 0.55 }));
     this.moon = new THREE.Mesh(this.own(new THREE.SphereGeometry(1, 24, 12)), mat);
     this.moon.position.set(-0.55, 0.42, -0.72).setLength(2600);
-    this.moon.scale.setScalar(70);
+    this.moon.scale.setScalar(42);
     this.group.add(this.moon);
   }
 
@@ -106,6 +105,7 @@ export class EarthSky {
     u.uSun.value.copy(SUN_TINT).multiplyScalar(cycle.daylight);
     u.uSunDir.value.copy(cycle.sunDir);
     this.updateClouds(cycle);
+    this.moon.material.opacity = 0.35 + 0.65 * night; // pale by day, bright at night
   }
 
   // The layer sits at a fixed altitude; its texture is anchored to the world and drifts.

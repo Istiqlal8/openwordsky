@@ -14,10 +14,11 @@ void main() {
 }`;
 const DOME_FRAG = /* glsl */ `
 uniform vec3 uZenith, uHorizon, uNadir, uSunDir, uSunCol;
+uniform float uHaze; // height of the horizon haze band (0..1 of the dome)
 varying vec3 vDir;
 void main() {
   vec3 d = normalize(vDir);
-  vec3 col = d.y > 0.0 ? mix(uHorizon, uZenith, pow(d.y, 0.55)) : mix(uHorizon, uNadir, pow(-d.y, 0.5));
+  vec3 col = d.y > 0.0 ? mix(uHorizon, uZenith, pow(clamp(d.y / uHaze, 0.0, 1.0), 0.6)) : mix(uHorizon, uNadir, pow(-d.y, 0.5));
   float s = max(dot(d, uSunDir), 0.0);
   col += uSunCol * (pow(s, 12.0) * 0.35 + pow(s, 200.0));
   gl_FragColor = vec4(col, 1.0);
@@ -28,7 +29,7 @@ void main() {
 function buildDome() {
   const mat = new THREE.ShaderMaterial({
     uniforms: { uZenith: { value: new THREE.Color() }, uHorizon: { value: new THREE.Color() },
-      uNadir: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3() }, uSunCol: { value: new THREE.Color() } },
+      uNadir: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3() }, uSunCol: { value: new THREE.Color() }, uHaze: { value: 0.5 } },
     vertexShader: DOME_VERT, fragmentShader: DOME_FRAG, side: THREE.BackSide, depthWrite: false,
   });
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(DOME_R, 32, 16), mat);
@@ -98,6 +99,7 @@ export class GasSky {
     u.uHorizon.value.copy(atm.fog);
     u.uNadir.value.copy(atm.nadir);
     u.uSunDir.value.copy(this.sunDir);
+    u.uHaze.value = atm.haze;
     u.uSunCol.value.copy(this.sunColor).multiplyScalar(atm.sun * 0.8);
     this.stars.material.opacity = atm.space * 0.9;
     this.stars.visible = atm.space > 0.02;

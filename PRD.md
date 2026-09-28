@@ -50,6 +50,54 @@ Added in v1.2:
 - **NPC travellers** in space and on planets; **day–night cycle** with auroras;
   **ancient ruins** with lore; **pets**; **derelict freighters**; rare **golden planets**.
 
+Added in v1.3 (quests and gathering):
+- **Quest journal** (`J`): a 35-quest main story in four chapters (Pendaratan Pertama, Naturalis,
+  Bintang-Bintang, Legenda) plus endless side contracts (3 on the board, built from the current
+  planet's plants, animals and minerals, or space tasks while flying). `K` in the journal swaps
+  the oldest contract. Rewards: Nanit, items and XP; XP raises the explorer rank.
+- **Plant materials**: harvesting a plant can also drop a material tied to its shape
+  (Nektar, Spora, Serpih Kristal, Getah Kaktus...). The first harvest of a species records it
+  in the flora catalog.
+- **Animal products**: `Q` next to a calm animal collects wool, milk, eggs, scales... without
+  hurting it (45 s cooldown per animal). Hunting drops a trophy (Kulit Fauna, Tulang Besar,
+  Bulu Sayap). Scanning (`F`) next to an animal records its species in the fauna catalog.
+- **Ground pickups**: glowing items with a light beam, per biome (herbs, fruit, eggs, fossils,
+  geodes, pearls...). Walk into one to pick it up.
+
+- **Planet collections**: every planet has its own checklist in the journal: all its fauna
+  species (scan), all flora species (harvest), 3 endemic items named for that planet (a plant
+  product, a mineral and a rare relic that shows as a cyan ground pickup), its biome pickups and
+  its minerals. Finishing a list pays a one-time bonus; chapter 5 of the story (Kurator) asks for
+  1, 5 and 12 finished planets.
+
+- **NPC requests**: about 65% of the explorers who land on a planet have a request, shown by a
+  green "!" above their head. `T` next to one accepts it (it goes to the journal). Requests:
+  deliver local minerals, Ferit/Karbon for a broken ship, food, the planet's endemic items or
+  pickups (handed over automatically once carried), find the endemic relic, hunt pests, record
+  a new species, collect animal products. The same explorer always asks the same thing; answered
+  explorers are remembered in the save.
+
+Added in v1.4 (built by parallel agents; each is an addon registered in src/game/addons.js
+or src/gameplay/world-addons.js):
+- **Crafting + market** (`U`, src/craft/): 6 upgrade lines × 3 tiers (thermal, filter, oxygen
+  tank, beam range, mining speed, blaster rate) that change life-support drain / tools; consumables
+  (Obat, Umpan, Sel Darurat); sell/buy with Nanit; endemic items sell for double outside their
+  home system.
+- **Guidance + collection book** (`L`, src/guide/): on-foot markers to the nearest endemic relic,
+  explorers with requests and quest items; nearest planet of a biome a quest asks for; a book of
+  every species, finished planet and endemic item.
+- **Rare wildlife and events** (src/gameplay/rare-wildlife.js, night-flora.js, src/events/): ~5%
+  golden animals (Bulu Emas, Susu Bintang, Trofi Langka); Bunga Bulan at night, Kristal Badai in
+  storms; meteor showers, mass blooms and herd migrations.
+- **Daily challenges, NPC chains, rival, alien reputation** (src/quest/daily.js, npc-chains.js,
+  rival.js, reputation.js): 3 dated challenges with streak bonus; multi-step explorer stories across
+  systems; a named rival racing you to finish planet collections; reputation tiers per alien race
+  with gifts and race orders.
+- **Cargo and rescue missions** (`O` on a planet, src/missions/): deliver goods, live animals,
+  plants or contraband to planets 1–5 jumps away; hold size depends on ship class (fighter 4,
+  explorer/exotic 8, hauler 14, + cargo parts); big animals need a hauler, contraband a fighter;
+  distress calls to save planets (plague, pirates, sentinels, stranded colony, drought) on a timer.
+
 Out of scope: crafting trees, multiplayer, trading, base building.
 
 ## 3. Controls
@@ -68,6 +116,12 @@ Out of scope: crafting trees, multiplayer, trading, base building.
 | V | chase / cockpit camera | — |
 | H | hangar | — |
 | G | — | recharge suit with resources |
+| Q | — | collect product from a calm animal |
+| J | quest journal | quest journal |
+| K | swap contract (journal open) | swap contract (journal open) |
+| U | craft / market | craft / market |
+| L | collection book | collection book |
+| O | — | cargo board |
 | Tab / I | inventory | inventory |
 | Esc | release mouse | release mouse |
 
@@ -104,6 +158,8 @@ src/combat/, src/fx/     space combat, pirates, asteroids, explosions
 src/gameplay/            mining, life support, sentinels, blaster
 src/ui/                  HUD, scan panel, vitals, inventory, death screen, hangar, map
 src/core/touch.js        touch controls
+src/quest/               story chain, contract generator, quest log, material tables
+src/game/quest-wiring.js quest log <-> game events, journal keys
 ```
 
 ## 6. Module contracts

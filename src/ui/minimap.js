@@ -200,6 +200,7 @@ export class Minimap {
     this.drawRings(h, R);
     for (const a of d.creatures ?? []) this.blip(rot(a.x, a.z), h, R, a.hostile ? RED : GREEN, 2.5);
     for (const a of d.sentinels ?? []) this.blip(rot(a.x, a.z), h, R, a.hostile ? RED : CYAN, 3);
+    for (const pl of d.places ?? []) this.drawPlace(rot(pl.x, pl.z), h, R, pl.color);
     if (d.ship) this.drawRadarShip(rot(d.ship.x, d.ship.z), h, R);
     shipArrow(this.ctx, h, h, 0, TEXT, null);
     this.drawCompass(h, R, c, sn);
@@ -224,6 +225,17 @@ export class Minimap {
   blip([x, z], h, R, color, r) {
     if (Math.hypot(x - h, z - h) > R - r) return;
     dot(this.ctx, x, z, r, color);
+  }
+
+  // Places (home base, ruins, outposts): a small house icon, pinned to the rim when out of range.
+  drawPlace([x, z], h, R, color) {
+    const dist = Math.hypot(x - h, z - h), k = dist > R - 6 ? (R - 6) / dist : 1;
+    const px = h + (x - h) * k, pz = h + (z - h) * k, ctx = this.ctx;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px, pz - 6); ctx.lineTo(px + 5, pz - 1); ctx.lineTo(px + 5, pz + 4);
+    ctx.lineTo(px - 5, pz + 4); ctx.lineTo(px - 5, pz - 1); ctx.closePath();
+    ctx.fill();
   }
 
   drawRadarShip([x, z], h, R) {

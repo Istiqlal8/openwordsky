@@ -67,5 +67,7 @@ export function gasPalette(planet) {
     ringColor: planet.style === 'saturn' ? 0xd9c79a : planet.palette.rock,
     moons: Math.min(5, planet.moons ?? 0),
     seed: planet.seed >>> 0,
+    style: planet.style ?? null,
+    name: planet.name ?? null,
   };
 }

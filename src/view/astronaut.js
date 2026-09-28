@@ -18,6 +18,8 @@ function materials(accent) {
   return {
     suit: new THREE.MeshStandardMaterial({ color: 0xe9e4d8, roughness: 0.7, flatShading: true }),
     dark: new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.8, flatShading: true }),
+    skin: new THREE.MeshStandardMaterial({ color: 0xc98d62, roughness: 0.8, flatShading: true }),
+    hair: new THREE.MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.9, flatShading: true }),
     accent: new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.35, flatShading: true }),
     visor: new THREE.MeshStandardMaterial({ color: 0x1a2a44, metalness: 0.9, roughness: 0.15, emissive: 0xffa040, emissiveIntensity: 0.12 }),
   };
@@ -29,15 +31,31 @@ export class Astronaut {
     const m = this.mats;
     this.group = new THREE.Group();
     this.group.add(part(new THREE.CapsuleGeometry(0.28, 0.45, 4, 10), m.suit, 0, 1.05, 0));
-    this.group.add(part(new THREE.BoxGeometry(0.46, 0.55, 0.22), m.dark, 0, 1.1, 0.26));
+    this.pack = part(new THREE.BoxGeometry(0.46, 0.55, 0.22), m.dark, 0, 1.1, 0.26);
+    this.group.add(this.pack);
     this.group.add(part(new THREE.BoxGeometry(0.1, 0.1, 0.05), m.accent, 0.12, 1.25, -0.27));
     const head = part(new THREE.SphereGeometry(0.24, 16, 12), m.suit, 0, 1.58, 0);
-    head.add(part(new THREE.SphereGeometry(0.19, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-Math.PI / 2), m.visor, 0, 0.02, -0.09));
+    this.head = head;
+    this.visor = part(new THREE.SphereGeometry(0.19, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55).rotateX(-Math.PI / 2), m.visor, 0, 0.02, -0.09);
+    head.add(this.visor);
+    this.hair = part(new THREE.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), m.hair, 0, 0.02, 0.02);
+    this.hair.visible = false;
+    head.add(this.hair);
     this.group.add(head);
     this.legs = [limb(m.suit, -0.13, 0.72, 0.42, 0.11), limb(m.suit, 0.13, 0.72, 0.42, 0.11)];
     this.arms = [limb(m.suit, -0.36, 1.32, 0.38, 0.08), limb(m.suit, 0.36, 1.32, 0.38, 0.08)];
     this.group.add(...this.legs, ...this.arms);
     this.t = 0;
+  }
+
+  // Breathable worlds: casual clothes, bare head, no life-support pack.
+  setCasual(on) {
+    this.pack.visible = !on;
+    this.visor.visible = !on;
+    this.hair.visible = on;
+    this.head.material = on ? this.mats.skin : this.mats.suit;
+    this.head.scale.setScalar(on ? 0.82 : 1);
+    this.mats.suit.color.setHex(on ? 0x3f6fa8 : 0xe9e4d8); // shirt/trousers vs suit
   }
 
   // Place at the feet, facing yaw; swing limbs while walking.

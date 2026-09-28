@@ -29,6 +29,7 @@ const NIGHT_SKY = new THREE.Color(0x03050d);
 const NIGHT_HEMI = new THREE.Color(0x6072b8); // moonlight
 const DUSK = new THREE.Color(0xff6a2c);
 const _warm = new THREE.Color();
+const UNDERWATER = new THREE.Color(0x0e5566);
 
 function weatherColor(kind, planet) {
   const p = planet.palette;
@@ -106,6 +107,7 @@ function sunDirection(rng) {
 export class SurfaceSky {
   constructor(scene, planet, system) {
     this.scene = scene;
+    this.style = planet.style;
     this.group = new THREE.Group(); // follows the player so sky objects stay far away
     scene.add(this.group);
     this.owned = []; // geometries + materials to dispose
@@ -169,7 +171,7 @@ export class SurfaceSky {
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     const sprite = new THREE.Sprite(mat);
     sprite.position.copy(this.sunDir).multiplyScalar(3000);
-    sprite.scale.setScalar(this.airless ? 900 : 55 * size); // airless: a hard disc, no glare
+    sprite.scale.setScalar(this.glareSize(size));
     this.sunSprite = sprite;
     // Warm halo on the horizon around sunrise / sunset.
     const glowMat = this.own(new THREE.SpriteMaterial({ map: glowTexture(0xff8a4a), color: DUSK, fog: false,
@@ -177,6 +179,12 @@ export class SurfaceSky {
     this.duskGlow = new THREE.Sprite(glowMat);
     this.duskGlow.scale.set(5200, 2600, 1);
     this.group.add(sprite, this.duskGlow);
+  }
+
+  // Airless: a hard disc; Earth: the sky dome draws the glare; others: capped star glow.
+  glareSize(size) {
+    if (this.airless) return 900;
+    return this.style === 'earth' ? 1300 : Math.min(55 * size, 12000);
   }
 
   addMoons(planet, rng) {
@@ -250,10 +258,26 @@ export class SurfaceSky {
     this.extra?.update(dt, c, bg);
   }
 
-  update(dt, playerPos) {
+  update(dt, playerPos, underwater = false) {
     this.group.position.copy(playerPos);
     this.applyDayCycle(dt);
+    this.applyUnderwater(underwater);
     this.weather?.update(dt, playerPos);
+  }
+
+  // Below the water surface: short blue-green visibility and dimmed sunlight.
+  applyUnderwater(under) {
+    const fog = this.scene.fog;
+    this.baseDensity ??= fog.density;
+    fog.density = under ? 0.045 : this.baseDensity;
+    if (this.extra?.dome) this.extra.dome.visible = !under;
+    this.sunSprite.visible = !under;
+    if (!under) return;
+    const day = 0.25 + 0.75 * this.cycle.daylight;
+    fog.color.copy(UNDERWATER).multiplyScalar(day);
+    this.scene.background.copy(fog.color);
+    this.sun.intensity *= 0.35;
+    this.hemi.intensity *= 0.6;
   }
 
   dispose() {

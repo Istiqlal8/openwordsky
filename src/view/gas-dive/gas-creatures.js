@@ -6,6 +6,7 @@ import { glowTexture } from '../../assets/textures.js';
 
 const SPAN = 9000, STRANDS = 8, SEGS = 10;
 const LEVELS = [-320, -900, -1500, -2100, -2700];
+const HUES = [0.5, 0.55, 0.8, 0.9, 0.35, 0.12]; // few fixed glows keep the glow-texture cache small
 
 function jelly(rng, glow, res) {
   const g = new THREE.Group();
@@ -67,7 +68,7 @@ export class GasCreatures {
   }
 
   add(rng, pal, i) {
-    const hue = rng.next();
+    const hue = rng.pick(HUES);
     const glow = new THREE.Color().setHSL(hue, 0.8, 0.6);
     const isWhale = i % 3 === 2;
     const body = pal.mean.clone().lerp(new THREE.Color(0x404858), 0.5);

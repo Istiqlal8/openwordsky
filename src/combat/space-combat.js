@@ -43,7 +43,7 @@ export class SpaceCombat {
     this.root.name = 'combat';
     space.scene.add(this.root);
     this.fx = new FxSystem(space.scene);
-    this.playerBolts = new BoltPool(this.root, { color: 0x44ccff });
+    this.playerBolts = new BoltPool(this.root, { color: 0x44ccff, length: 7, width: 0.32 });
     this.enemyBolts = new BoltPool(this.root, { color: 0xff2a18, capacity: 120, length: 2.6, width: 0.2 });
     this.rockets = new RocketPool(this.root);
     this.weapons = new PlayerWeapons({ space, player, sfx: this.sfx, fx: this.fx, bolts: this.playerBolts, rockets: this.rockets });
@@ -204,6 +204,7 @@ export class SpaceCombat {
     this.sfx.explosion?.(0.7);
     pirateLoot(this.player);
     this.player.emit('kill', { what: p.kind.name });
+    this.player.emit('act', { type: 'pirate' });
   }
 
   damageRock(rock, dmg, at) {
@@ -212,6 +213,7 @@ export class SpaceCombat {
     this.fx.explode(rock.pos, { color: 0xc89060, size: 0.4 + rock.r * 0.25 });
     this.sfx.explosion?.(0.25);
     rockLoot(this.player, rock.r);
+    this.player.emit('act', { type: 'asteroid' });
     this.sfx.pickup?.();
   }
 

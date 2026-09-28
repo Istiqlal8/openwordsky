@@ -48,7 +48,8 @@ export class PlayerWeapons {
     tmpP.copy(cam.position).addScaledVector(aimForward(this.space, tmpF), CONVERGE);
     tmpV.subVectors(tmpP, from).normalize().multiplyScalar(LASER_SPEED).add(this.space.velocity);
     this.bolts.fire(from, tmpV, 10 * this.damageMult, 1.4);
-    this.fx.sparks(from, 0x66ddff, 2, 0.3);
+    this.fx.sparks(from, 0x9fe8ff, 6, 0.9); // muzzle flash
+    this.space.shake?.(0.05);
     this.sfx.laser?.();
   }
 

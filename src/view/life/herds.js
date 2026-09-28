@@ -129,8 +129,10 @@ export class Herds {
     this.calm -= dt;
     this.player = player;
     this.env ??= { heightFn: this.heightFn, dt, near: true };
+    const gone = [];
     for (let i = 0; i < this.animals.length; i++) {
       const a = this.animals[i];
+      if (a.dead) { if (this.corpse(a, dt)) gone.push(a); continue; }
       think(this, a, player, dt);
       hopStep(this, a, dt);
       steer(this, a, dt, i);
@@ -138,6 +140,23 @@ export class Herds {
       const dx = a.pos.x - player.x, dz = a.pos.z - player.z;
       this.animate(a, dt, dx * dx + dz * dz < NEAR * NEAR);
     }
+    for (const a of gone) this.kill(a);
+  }
+
+  // Caught by a predator: stop moving and drop onto its side.
+  killPrey(prey) {
+    prey.dead = true;
+    prey.corpseT = 14;
+    prey.fleeT = 0;
+  }
+
+  // Lies still, rolls onto its side and sinks away; true when it should be removed.
+  corpse(a, dt) {
+    a.corpseT -= dt;
+    const r = a.root.rotation;
+    r.z += (1.35 - r.z) * Math.min(1, dt * 3);
+    if (a.corpseT < 3) a.root.position.y -= dt * 0.4;
+    return a.corpseT <= 0;
   }
 
   refreshBodies() {

@@ -1,0 +1,64 @@
+/* Quest tracker (right) + journal (J). */
+.q-tracker {
+  position: absolute; right: 16px; top: 72px; width: min(230px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 6px; padding: 8px 10px;
+  background: linear-gradient(160deg, rgba(6, 12, 20, 0.45), rgba(4, 8, 14, 0.2));
+  border-right: 2px solid var(--amber);
+}
+.hud:not([data-mode="space"]):not([data-mode="surface"]) .q-tracker,
+.hud:has(.scan:not(.is-hidden)) .q-tracker,
+.hud:has(.q-journal:not(.is-hidden)) .q-tracker { display: none; }
+.q-track { display: grid; gap: 2px; }
+.q-title { font-weight: 700; font-size: 14px; letter-spacing: 0.02em; }
+.q-track.is-story .q-title, .q-card.is-story .q-title { color: var(--amber); }
+.q-line { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 12.5px; }
+.q-num { font: 600 11px/1.4 var(--display); color: var(--cyan); font-variant-numeric: tabular-nums; }
+.q-bar { display: block; height: 3px; background: rgba(111, 227, 255, 0.15); }
+.q-fill { display: block; height: 100%; background: var(--cyan); transition: width 0.3s ease-out; }
+.is-story .q-fill { background: var(--amber); }
+.q-journal {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 7;
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 120px); overflow: auto;
+  display: grid; gap: 8px; scrollbar-width: thin;
+}
+.q-rank { display: flex; justify-content: space-between; align-items: baseline; }
+.q-rank-name { font: 700 16px/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.q-stats { color: var(--muted); font-size: 13px; }
+.q-card { display: grid; gap: 3px; padding: 8px 10px; background: rgba(4, 8, 14, 0.5); border: 1px solid var(--line); }
+.q-tag { font: 600 9.5px/1.3 var(--display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.q-text { font-size: 13.5px; }
+.q-reward { color: var(--amber); font-size: 12.5px; margin-top: 2px; }
+@media (max-width: 640px), (max-height: 500px) {
+  .q-tracker { top: 16px; width: 180px; }
+  .q-tracker .q-track:nth-of-type(n + 3) { display: none; }
+}
+/* Planet collection checklist */
+.q-track.is-collection .q-title { color: var(--cyan); }
+.col-card { border-color: rgba(111, 227, 255, 0.35); }
+.col-group { display: grid; gap: 3px; margin-top: 4px; }
+.col-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 10px; }
+.col-row { display: flex; gap: 6px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.col-row.is-done { color: var(--text); }
+.col-row.is-endemic .col-name { color: var(--cyan); }
+.col-mark { flex: none; width: 10px; color: var(--amber); }
+.col-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* NPC requests */
+.q-track.is-npc .q-title, .q-card.is-npc .q-title { color: #9dff6a; }
+.is-npc .q-fill { background: #9dff6a; }
+/* Daily challenges, rival race, alien reputation */
+.q-track.is-daily .q-title, .q-card.is-daily .q-tag { color: #ffd24a; }
+.is-daily .q-fill { background: #ffd24a; }
+.q-daily { display: grid; gap: 2px; }
+.q-daily.is-done .q-goal { color: var(--text); }
+.q-track.is-rival .q-title, .q-card.is-rival .q-title { color: #ff7a6a; }
+.is-rival .q-fill { background: #ff7a6a; }
+.rep-list { display: grid; gap: 4px; }
+.rep-row { display: grid; grid-template-columns: 1fr auto auto; gap: 2px 10px; align-items: baseline; font-size: 13px; }
+.rep-row .q-bar { grid-column: 1 / -1; }
+.rep-tier { font: 600 10px/1.3 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.rep-tier.is-t1 { color: var(--cyan); }
+.rep-tier.is-t2 { color: #9dff6a; }
+.rep-tier.is-t3 { color: var(--amber); }
+/* Many addon rows: cap the tracker above the key hints and fade the overflow. */
+.q-tracker { max-height: max(150px, calc(100vh - 470px)); overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 85%, transparent); mask-image: linear-gradient(#000 85%, transparent); }

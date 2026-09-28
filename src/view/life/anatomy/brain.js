@@ -62,7 +62,7 @@ function chasePlayer(h, a, player, dp, dt) {
 function pickPrey(h, a) {
   let best = null, bd = 40;
   for (const b of h.animals) {
-    if (b.sp === a.sp || b.flying || b.sp.genes.size > a.sp.genes.size * 1.7 || isPredator(b.sp)) continue;
+    if (b.dead || b.sp === a.sp || b.flying || b.sp.genes.size > a.sp.genes.size * 1.7 || isPredator(b.sp)) continue;
     const d = dist2(a.pos, b.pos);
     if (d < bd) { bd = d; best = b; }
   }
@@ -72,6 +72,7 @@ function pickPrey(h, a) {
 // Predators stalk (slow, head low) then sprint; prey near a hunter flees.
 function hunt(h, a, dt) {
   if (!a.predator || a.flying) return false;
+  if (a.eatT > 0) return feed(a, dt);
   a.hunger -= dt;
   if (!a.prey && a.hunger <= 0) { a.prey = pickPrey(h, a); a.huntT = 0; a.hunger = 8; }
   const prey = a.prey;
@@ -87,7 +88,27 @@ function hunt(h, a, dt) {
   a.looking = true;
   a.lookAt.copy(prey.pos);
   if (d < 13) scare(prey, a.pos, 2);
-  if (d < 1.2 + a.scale) { scare(prey, a.pos, 5); a.prey = null; a.hunger = 25; a.state = 'rest'; a.stateT = 8; }
+  if (d < 1.2 + a.scale) catchPrey(h, a, prey);
+  return true;
+}
+
+// The catch: the prey collapses and the predator eats over it for a while.
+function catchPrey(h, a, prey) {
+  h.killPrey?.(prey);
+  a.prey = null;
+  a.hunger = 30;
+  a.eatT = 9;
+  a.eatAt = prey.pos.clone();
+}
+
+function feed(a, dt) {
+  a.eatT -= dt;
+  a.state = 'graze';           // head-down chewing pose
+  a.dest.copy(a.pos);
+  a.want = 0;
+  setGoal(a, 1, 0, Math.sin(a.eatT * 9) > 0 ? 1 : 0.2, 0); // jaw works while feeding
+  a.looking = true;
+  a.lookAt.copy(a.eatAt);
   return true;
 }
 

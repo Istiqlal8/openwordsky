@@ -9,10 +9,10 @@ import { buildDinoFallback } from './models/dino-fallback.js';
 
 // height: meters at the top of the head; radius: hit sphere as a fraction of height.
 const KINDS = {
-  rex: { model: 'trex', label: 'Rex', height: 5, speed: 4.5, pack: 1, hp: 160, radius: 0.5 },
-  raptor: { model: 'raptor', label: 'Raptor', height: 1.8, speed: 10, pack: 3, hp: 50, radius: 0.55 },
-  longneck: { model: 'longneck', label: 'Titan', height: 12, speed: 2.4, pack: 1, hp: 240, radius: 0.35 },
-  triceratops: { model: 'triceratops', label: 'Tanduk', height: 3, speed: 3.5, pack: 2, hp: 140, radius: 0.6 },
+  rex: { model: 'trex', label: 'Rex', height: 9, speed: 4.5, pack: 1, hp: 160, radius: 0.5 },
+  raptor: { model: 'raptor', label: 'Raptor', height: 2.6, speed: 10, pack: 3, hp: 50, radius: 0.55 },
+  longneck: { model: 'longneck', label: 'Titan', height: 22, speed: 2.4, pack: 1, hp: 240, radius: 0.35 },
+  triceratops: { model: 'triceratops', label: 'Tanduk', height: 5.5, speed: 3.5, pack: 2, hp: 140, radius: 0.6 },
 };
 const ROAM = 110;
 
@@ -72,8 +72,11 @@ export class Dinos extends ModelGroup {
     if (dist < 3) { this.retarget(d, player); return 0; }
     const speed = d.spec.speed * (d.height / d.spec.height);
     const v = Math.min(dist, speed * dt);
-    d.pos.x += (dx / dist) * v;
-    d.pos.z += (dz / dist) * v;
+    const nx = d.pos.x + (dx / dist) * v, nz = d.pos.z + (dz / dist) * v;
+    // Never wade into the sea: the straight path to a dry target can cross water.
+    if (!this.dry(nx, nz)) { this.retarget(d, player); return 0; }
+    d.pos.x = nx;
+    d.pos.z = nz;
     const turn = wrapAngle(Math.atan2(-dz, dx) - d.root.rotation.y);
     d.root.rotation.y += turn * Math.min(1, dt * 2);
     return speed;

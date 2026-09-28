@@ -1,6 +1,6 @@
 // The player's home base on Earth: hangar, DIY workshop, houses, store, landing pad and residents.
 import { GeoKit } from './geo-kit.js';
-import { chooseSite, clearZones } from './site.js';
+import { chooseSite, clearZones, LAYOUT } from './site.js';
 import { assembleBase } from './assemble.js';
 import { makeMaterials, applyNight, disposeMaterials } from './materials.js';
 import { makeAtlas } from './signs.js';
@@ -21,6 +21,15 @@ export class HomeBase {
 
   get center() { return this.frame ? { x: this.frame.cx, z: this.frame.cz } : null; }
   // Landing pad top centre; yaw = the base orientation (park ships along it).
+  // Solid building footprints (world x/z circles). The hangar stays open to walk in.
+  colliders() {
+    if (!this.frame) return [];
+    const L = LAYOUT, f = this.frame;
+    const spots = [...L.houses.map((q) => ({ x: q.x, z: q.z, r: 4.6 })), { ...L.store, r: 2.8 },
+      { ...L.workshop, r: 6.5 }, { ...L.tower, r: 2 }, { ...L.waterTower, r: 2.6 }];
+    return spots.map((q) => ({ x: f.x(q.x, q.z), z: f.z(q.x, q.z), r: q.r }));
+  }
+
   get padPosition() { return this.anchors ? { x: this.anchors.pad.x, y: this.anchors.pad.floor, z: this.anchors.pad.z, yaw: this.frame.yaw } : null; }
 
   // Builds the base on Earth only; any other planet leaves it empty.
@@ -67,6 +76,7 @@ export class HomeBase {
     this.zones = clearZones(this.frame);
     props.extraZones.push(...this.zones);
     props.rebuild(this.surface.center.x, this.surface.center.z);
+    this.surface.earth?.recenter?.(); // Earth ground cover re-reads the zones
   }
 
   // Move a LandedShip (default: the surface's) onto the landing pad.
@@ -114,6 +124,7 @@ export class HomeBase {
     if (s.props) {
       s.props.extraZones = s.props.extraZones.filter((z) => !this.zones.includes(z));
       s.props.rebuild(s.center.x, s.center.z);
+      s.earth?.recenter?.();
     }
     this.meshes = [];
     this.points = [];

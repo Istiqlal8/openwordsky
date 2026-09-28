@@ -245,22 +245,22 @@ export class SpaceView {
     return { planet: b.planet, distance: this.ship.position.distanceTo(b.pos) - b.radius };
   }
 
+  // Planet under the crosshair (camera ray): the nearest disc it passes through, else the closest within 6°.
   lookedPlanet() {
-    const fwd = tmpA.set(0, 0, -1).applyQuaternion(this.ship.quaternion);
-    let best = null;
-    let bestAngle = Infinity;
+    const cam = this.camera, fwd = cam.getWorldDirection(tmpA);
+    let hit = null, near = null, bestAngle = LOOK_ANGLE;
     for (const b of this.bodies) {
-      const dir = tmpB.subVectors(b.pos, this.ship.position);
+      const dir = tmpB.subVectors(b.pos, cam.position);
       const len = dir.length();
       const angle = Math.acos(THREE.MathUtils.clamp(dir.dot(fwd) / len, -1, 1));
-      const allowed = Math.max(LOOK_ANGLE, Math.asin(Math.min(1, b.radius / len)));
-      if (angle <= allowed && angle < bestAngle) {
-        bestAngle = angle;
-        best = { planet: b.planet, distance: len - b.radius };
-      }
+      const disc = Math.asin(Math.min(1, b.radius / len));
+      if (angle <= disc && (!hit || len < hit.len)) hit = { b, len };
+      else if (angle < bestAngle) { bestAngle = angle; near = { b, len }; }
     }
-    return best;
+    const pick = hit ?? near;
+    return pick ? { planet: pick.b.planet, distance: pick.len - pick.b.radius } : null;
   }
+
 
   get speed() {
     return this.velocity.length();

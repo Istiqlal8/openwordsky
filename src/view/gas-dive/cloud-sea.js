@@ -15,7 +15,7 @@ const LAYERS = [
   { y: -1800, n: 210, span: 7000, size: [220, 520], thick: 150, clusters: 22, spread: 440, cover: 0.42, wind: [-10, -4] },
   { y: -2450, n: 190, span: 7000, size: [240, 560], thick: 170, clusters: 20, spread: 440, cover: 0.38, wind: [7, 5] },
 ];
-const STORM = { columns: 7, per: 16, span: 26000, bottom: -2700, top: 650, wind: [2, 0] };
+const STORM = { columns: 7, per: 18, span: 26000, bottom: -2700, top: 1500, wind: [2, 0] };
 const DECK_RADIUS = 22000;
 
 function puffGeometry(bases, data) {
@@ -50,10 +50,10 @@ function stormPuffs(rng) {
     const cx = rng.range(-0.5, 0.5) * STORM.span, cz = rng.range(-0.5, 0.5) * STORM.span;
     centres.push({ x: cx, z: cz, r: rng.range(500, 800) });
     for (let i = 0; i < STORM.per; i++) {
-      const t = i / (STORM.per - 1), anvil = t > 0.8;
+      const t = Math.pow(i / (STORM.per - 1), 0.6), anvil = i >= STORM.per - 3; // most puffs above the tops
       const y = STORM.bottom + (STORM.top - STORM.bottom) * t;
-      bases.push(cx + rng.range(-150, 150), y, cz + rng.range(-150, 150));
-      data.push(anvil ? rng.range(1100, 1500) : rng.range(650, 900), rng.range(0, 6.28), rng.range(0.7, 0.95), anvil ? 2.4 : 1.1);
+      bases.push(cx + rng.range(-120, 120), y, cz + rng.range(-120, 120));
+      data.push(anvil ? rng.range(900, 1200) : rng.range(420, 620), rng.range(0, 6.28), rng.range(0.75, 1), anvil ? 3 : 1);
     }
   }
   return { centres, bases, data };
@@ -137,7 +137,7 @@ export class CloudSea {
       const x = s.x + STORM.wind[0] * time, z = s.z + STORM.wind[1] * time;
       const dx = wrap(x - pos.x, STORM.span), dz = wrap(z - pos.z, STORM.span);
       const d = Math.hypot(dx, dz);
-      if (pos.y > STORM.top + 300) continue;
+      if (pos.y > STORM.top) continue;
       best = Math.max(best, 1 - THREE.MathUtils.smoothstep(d, s.r * 0.6, s.r * 2.2));
     }
     return best;

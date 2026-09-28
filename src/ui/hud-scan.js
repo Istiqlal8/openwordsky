@@ -1,6 +1,7 @@
 // Scanner result panel (right side) with the full planet readout.
 import { el, clear, show, fmtTemp, fmtGravity, meter, hazardIcon } from './dom.js';
 import { speciesSection } from './hud-species.js';
+import { breathable } from '../gameplay/life-support.js';
 
 const AUTO_HIDE_MS = 8000;
 
@@ -67,6 +68,7 @@ export class ScanPanel {
       row('Suhu', fmtTemp(p.temperature)),
       row('Gravitasi', fmtGravity(p.gravity)),
       row('Atmosfer', p.atmosphere),
+      row('Udara', breathable(p) ? 'Layak hirup' : 'Butuh oksigen'),
       row('Cuaca', p.weather),
       this.hazardRow(p.hazard),
       meterRow('Radiasi', p.radiation),

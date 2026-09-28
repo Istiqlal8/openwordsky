@@ -38,7 +38,7 @@ export class EarthGlobe {
     this.group = group;
     this.tex = globeTexture();
     this.mat = new THREE.MeshStandardMaterial({ map: this.tex, roughness: 0.8, fog: false,
-      emissive: 0x0a1830, emissiveIntensity: 1 });
+      emissive: 0xffffff, emissiveMap: this.tex, emissiveIntensity: 0.4 }); // readable even on its night side
     this.geo = new THREE.SphereGeometry(1, 48, 24);
     this.globe = new THREE.Mesh(this.geo, this.mat);
     this.globe.scale.setScalar(260);

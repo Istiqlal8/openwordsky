@@ -8,6 +8,7 @@ export class PlayerState {
     this.suit = { health: MAX, lifeSupport: MAX, hazard: MAX, ...saved.suit };
     this.inventory = { ...saved.inventory };
     this.pet = saved.pet ?? null; // tamed creature, re-spawned on every landing
+    this.upgrades = { ...saved.upgrades }; // crafted suit/tool tiers, see src/craft/upgrades.js
     this.listeners = {};
     this.sinceShipHit = 99;
     this.dead = false;
@@ -83,7 +84,7 @@ export class PlayerState {
   }
 
   toJSON() {
-    return { ship: this.ship, suit: this.suit, inventory: this.inventory, pet: this.pet };
+    return { ship: this.ship, suit: this.suit, inventory: this.inventory, pet: this.pet, upgrades: this.upgrades };
   }
 }
 

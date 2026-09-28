@@ -92,7 +92,7 @@ export function chooseSite(h, planet, spawn) {
 
 // Circles kept free of flora and rocks (footprints + path strips).
 export function clearZones(frame) {
-  const zones = footprints().map((f) => ({ x: frame.x(f.x, f.z), z: frame.z(f.x, f.z), r: f.r + 1.5 }));
+  const zones = footprints().map((f) => ({ x: frame.x(f.x, f.z), z: frame.z(f.x, f.z), r: f.r + 3 })); // margin for wide tree canopies
   for (const [ax, az, bx, bz] of pathSegments()) {
     const n = Math.ceil(Math.hypot(bx - ax, bz - az) / 3);
     for (let i = 0; i <= n; i++) {

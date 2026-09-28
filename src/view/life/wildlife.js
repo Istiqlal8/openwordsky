@@ -1,6 +1,7 @@
 // All animal life on a planet surface: species herds, dinosaurs, megafauna and sea creatures.
 import * as THREE from 'three';
 import { Herds } from './herds.js';
+import { EarthFauna } from '../../earth/earth-fauna.js';
 import { Dinos } from './dinos.js';
 import { SeaLife } from './sealife.js';
 import { Megafauna } from './megafauna.js';
@@ -13,6 +14,8 @@ export class Wildlife {
   constructor(scene, planet, heightFn, origin) {
     const o = { x: origin.x, z: origin.z };
     this.groups = [new Herds(scene, planet, heightFn, o)];
+    // Earth has its own realistic roster (deer, eagles, whales, a dinosaur plain...).
+    if (planet.style === 'earth') { this.groups.push(new EarthFauna(scene, planet, heightFn, o)); return; }
     if (planet.fauna.dinos) this.groups.push(new Dinos(scene, planet, heightFn, o));
     this.groups.push(new Megafauna(scene, planet, heightFn, o));
     if (planet.sea.count) this.groups.push(new SeaLife(scene, planet, heightFn));
@@ -45,7 +48,7 @@ export class Wildlife {
     group.provoke(ref);
     if (ref.hp > 0) return false;
     group.kill(ref);
-    this.onKill?.(point.clone(), ref.name ?? ref.sp?.name ?? 'Makhluk');
+    this.onKill?.(point.clone(), ref.name ?? ref.sp?.name ?? 'Makhluk', ref.sp ?? null);
     return true;
   }
 

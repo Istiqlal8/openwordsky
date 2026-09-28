@@ -260,3 +260,5 @@ body.is-touch { --mm: 110px; }
 .sp-name { font-weight: 700; letter-spacing: 0.03em; }
 .sp-line { color: var(--muted); font-size: 12.5px; }
 .sp-quirk { color: var(--cyan); font-size: 12.5px; font-style: italic; }
+/* Inside the capital ship: no planet/location panel */
+body[data-mode="freighter"] .only-surface { display: none; }

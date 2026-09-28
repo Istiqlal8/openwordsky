@@ -1,0 +1,20 @@
+/* Cargo deliveries + planet rescues (tracker, journal, cargo board). */
+.q-track.is-cargo .q-title, .q-card.is-cargo .q-title { color: #ffd36a; }
+.is-cargo .q-fill { background: #ffd36a; }
+.q-track.is-cargo .q-goal { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.q-track.is-rescue .q-title, .q-card.is-rescue .q-title { color: var(--red); }
+.is-rescue .q-fill { background: var(--red); }
+.q-card.is-rescue { border-color: rgba(255, 90, 74, 0.45); }
+.mis-timer { color: var(--red); }
+.mis-stage { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.mis-stage.is-now { color: var(--text); }
+.mis-stage.is-done { opacity: 0.6; text-decoration: line-through; }
+.q-card.is-saved .q-tag { color: #9dff6a; }
+.mis-board { z-index: 8; }
+.mis-offer.is-locked { opacity: 0.55; }
+.mis-lock { font: 600 11px/1.4 var(--display); color: var(--red); text-transform: uppercase; letter-spacing: 0.06em; }
+.hud:has(.mis-board:not(.is-hidden)) .q-tracker { display: none; }
+.mis-group { display: grid; gap: 6px; }
+.q-journal .mis-group { gap: 8px; }
+.mis-hint { color: var(--muted); font-size: 12.5px; }
+.is-cargo .q-num, .is-rescue .q-num { white-space: nowrap; flex: none; }

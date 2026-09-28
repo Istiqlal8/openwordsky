@@ -112,6 +112,7 @@ export class Sentinels {
     sfx?.explosion?.(2);
     player.addItem('Nanit', 8 + Math.floor(Math.random() * 10));
     player.addItem('Logam Penjaga', 1 + Math.floor(Math.random() * 2));
+    player.emit('act', { type: 'sentinel' });
     this.remove(this.drones.indexOf(drone));
     return true;
   }

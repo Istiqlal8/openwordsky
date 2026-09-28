@@ -41,7 +41,7 @@ function creaturesOf(wildlife) {
   return out;
 }
 
-export function surfaceFeed(surface, wildlife, gameplay, visitors = []) {
+export function surfaceFeed(surface, wildlife, gameplay, visitors = [], places = []) {
   const p = surface.position, ship = surface.shipPosition;
   const drones = gameplay.sentinels?.drones ?? [];
   const markers = [];
@@ -52,7 +52,7 @@ export function surfaceFeed(surface, wildlife, gameplay, visitors = []) {
   return {
     map: { player: { x: p.x, z: p.z, heading: headingOf(surface.camera) }, ship: ship ? { x: ship.x, z: ship.z } : null,
       creatures: creaturesOf(wildlife),
-      visitors: visitors.map((v) => ({ x: v.position.x, z: v.position.z, kind: v.kind })),
+      visitors: visitors.map((v) => ({ x: v.position.x, z: v.position.z, kind: v.kind })), places,
       sentinels: drones.map((d) => ({ x: d.group.position.x, z: d.group.position.z, hostile: d.hostile })), range: 120 },
     markers: markers.slice(0, 20),
   };

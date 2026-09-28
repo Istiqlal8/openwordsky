@@ -44,7 +44,7 @@ function mergeFlat(geos) {
 // Root-to-tip brightness as vertex color.
 function shade(geo, h) {
   const p = geo.attributes.position, col = new Float32Array(p.count * 3);
-  for (let i = 0; i < p.count; i++) col.fill(0.55 + 0.6 * Math.min(1, p.getY(i) / h), i * 3, i * 3 + 3);
+  for (let i = 0; i < p.count; i++) col.fill(0.72 + 0.45 * Math.min(1, p.getY(i) / h), i * 3, i * 3 + 3);
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return geo;
 }
@@ -61,7 +61,7 @@ function instanced(geo, max, sway) {
 export class EarthGrass {
   constructor(scene, patch, props) {
     Object.assign(this, { scene, patch, props });
-    this.tufts = instanced(tuftGeometry(5, 0.55), MAX, 0.25);
+    this.tufts = instanced(tuftGeometry(5, 0.42), MAX, 0.25);
     this.flowers = instanced(flowerGeometry(), MAX_FLOWERS, 0.3);
     this.last = null;
     scene.add(this.tufts, this.flowers);

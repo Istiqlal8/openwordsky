@@ -12,7 +12,7 @@ export class GasAtmosphere {
     this.pal = pal;
     this.state = {
       depth: 0, above: 0, fog: new THREE.Color(), density: 0, zenith: new THREE.Color(),
-      nadir: new THREE.Color(), sun: 1, ambient: 1, space: 0,
+      nadir: new THREE.Color(), haze: 0.5, sun: 1, ambient: 1, space: 0,
     };
     // Fixed cloud lighting by height: sunlit tops, murky depths.
     this.light = {
@@ -32,6 +32,7 @@ export class GasAtmosphere {
       : THREE.MathUtils.lerp(0.00007, 0.00095, Math.pow(s.depth, 1.1));
     this.zenith(alt, murk);
     s.nadir.copy(p.haze).multiplyScalar(0.75).lerp(p.deep, Math.min(1, murk * 1.2));
+    s.haze = alt > 0 ? THREE.MathUtils.lerp(0.32, 0.14, s.above) : Math.min(1, 0.32 + -alt / 400);
     s.sun = Math.pow(1 - s.depth, 1.6);
     s.ambient = 0.25 + 0.75 * (1 - s.depth);
     s.space = clamp01(0.25 + s.above * 0.75) * (1 - clamp01(-alt / 250));

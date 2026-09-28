@@ -6,13 +6,16 @@ const SCARE = 22; // grazers bolt when the player gets this close
 const LIZARD_SIGHT = 18;
 const ROAM = 150;
 
-function walkTo(a, dt, speed, turnRate = 3) {
+// Steps toward a.target; a step that would enter water cancels the target (land animals stay dry).
+function walkTo(a, dt, speed, turnRate = 3, dry = null) {
   const dx = a.target.x - a.pos.x, dz = a.target.z - a.pos.z;
   const dist = Math.hypot(dx, dz);
   if (dist < 1.5) return 0;
   const v = Math.min(dist, speed * dt);
-  a.pos.x += (dx / dist) * v;
-  a.pos.z += (dz / dist) * v;
+  const nx = a.pos.x + (dx / dist) * v, nz = a.pos.z + (dz / dist) * v;
+  if (dry && !dry(nx, nz)) { a.target.copy(a.pos); return 0; }
+  a.pos.x = nx;
+  a.pos.z = nz;
   a.root.rotation.y += wrapAngle(Math.atan2(-dz, dx) - a.root.rotation.y) * Math.min(1, dt * turnRate);
   return speed;
 }
@@ -34,10 +37,10 @@ export function moveGrazer(a, dt, player, dry) {
     const k = 30 / Math.max(1, d);
     a.target.set(a.pos.x + (a.pos.x - player.x) * k, 0, a.pos.z + (a.pos.z - player.z) * k);
     herd.center.set(a.target.x, 0, a.target.z);
-    return walkTo(a, dt, a.type.flee * a.scale, 5);
+    return walkTo(a, dt, a.type.flee * a.scale, 5, dry);
   }
   if (herd.center.distanceTo(player) > ROAM) wander(a.rng, herd.center, player, 50, 90, dry);
-  const moved = walkTo(a, dt, a.type.speed * a.scale);
+  const moved = walkTo(a, dt, a.type.speed * a.scale, 3, dry);
   if (!moved && a.rng.next() < dt * 0.3) wander(a.rng, a.target, herd.center, 2, 12, dry);
   return moved;
 }
@@ -49,9 +52,9 @@ export function moveLizard(a, dt, player, dry, group) {
     a.target.set(player.x, 0, player.z);
     a.biteCd -= dt;
     if (d < a.radius + 2 && a.biteCd <= 0) { a.biteCd = 1.5; group.onBite?.({ name: a.name }, 6 + a.height * 3); }
-    return walkTo(a, dt, a.type.chase * a.scale, 4);
+    return walkTo(a, dt, a.type.chase * a.scale, 4, dry);
   }
-  const moved = walkTo(a, dt, a.type.speed * a.scale, 1.5);
+  const moved = walkTo(a, dt, a.type.speed * a.scale, 1.5, dry);
   if (!moved && a.rng.next() < dt * 0.15) wander(a.rng, a.target, a.pos.distanceTo(player) > ROAM ? player : a.pos, 6, 25, dry);
   return moved;
 }

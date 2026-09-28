@@ -4,6 +4,8 @@ import { heightFn } from '../gen/terrain.js';
 import { TerrainPatch, painter } from '../earth/terrain-patch.js';
 import { FarTerrain } from '../earth/far-terrain.js';
 import { EarthWorld } from '../earth/earth-world.js';
+import { Swimmer, SWIM_SPEED, SWIM_SPRINT } from '../earth/swimming.js';
+import { WaterSurface } from '../earth/water-surface.js';
 import { SurfaceSky } from './surface-sky.js';
 import { SurfaceProps } from './surface-props.js';
 import { shipDesign } from './ship/ship-design.js';
@@ -50,6 +52,14 @@ export class SurfaceView {
   get position() { return this.head; }
   get flying() { return this.flight.active; }
   get shipPosition() { return this.landed ? this.landed.position : null; }
+  get swimming() { return Boolean(this.swim?.active) && !this.flight.active; }
+  // Camera below a (non-lava) water surface.
+  get underwater() { return Boolean(this.swim) && this.camera.position.y < this.swim.waterY; }
+  // Feet at or below the lava surface of a volcanic world (the floor keeps them from sinking).
+  get inLava() {
+    const p = this._planet;
+    return Boolean(p?.terrain.hasWater) && p.biome.id === 'volcanic' && !this.flight.active && this.feet.y <= p.terrain.waterY + 0.05;
+  }
 
   // Player's ship design; parked near the spawn on every mount.
   setShip(design) {
@@ -76,6 +86,7 @@ export class SurfaceView {
     this.buildWater(planet);
     this.props = new SurfaceProps(this.scene, planet, this.h, this.patch);
     this.earth = planet.style === 'earth' ? new EarthWorld(this) : null;
+    this.swim = planet.terrain.hasWater && planet.biome.id !== 'volcanic' ? new Swimmer(this, EYE) : null;
     this.avatar = new Astronaut();
     this.scene.add(this.avatar.group);
     this.flight.active = false;
@@ -95,24 +106,17 @@ export class SurfaceView {
 
   buildWater(planet) {
     if (!planet.terrain.hasWater) return;
-    const lava = planet.biome.id === 'volcanic';
-    const color = planet.palette.water;
-    const size = planet.style === 'earth' ? 18000 : 2400;
-    const geo = new THREE.PlaneGeometry(size, size);
-    geo.rotateX(-Math.PI / 2);
-    const mat = new THREE.MeshStandardMaterial({ color, roughness: lava ? 0.9 : 0.15,
-      metalness: lava ? 0 : 0.2, transparent: !lava, opacity: lava ? 1 : 0.8,
-      emissive: lava ? color : 0x000000, emissiveIntensity: lava ? 1.3 : 0 });
-    this.water = new THREE.Mesh(geo, mat);
-    this.water.position.y = planet.terrain.waterY;
-    this.scene.add(this.water);
+    this.waterSurface = new WaterSurface(this.scene, planet);
+    this.water = this.waterSurface.mesh;
   }
 
   recenter(px, pz) {
     const c = this.patch.recenter(px, pz);
     this.center.x = c.x;
     this.center.z = c.z;
-    this.props.rebuild(c.x, c.z);
+    if (this.flight.active) this.propsDue = true; // spread flight work: props next frame
+    else this.props.rebuild(c.x, c.z);
+    this.waterSurface?.setDepth(this.patch);
     this.earth?.recenter(c.x, c.z);
   }
 
@@ -146,9 +150,11 @@ export class SurfaceView {
       this.avatar.update(dt, this.feet, this.yaw, this.moveSpeed, this.onGround);
     }
     const dx = this.feet.x - this.center.x, dz = this.feet.z - this.center.z;
-    if (dx * dx + dz * dz > RECENTER * RECENTER) this.recenter(this.feet.x, this.feet.z);
-    if (this.water) this.water.position.set(this.feet.x, this._planet.terrain.waterY, this.feet.z);
-    this.sky.update(dt, this.camera.position);
+    const reach = this.flight.active ? RECENTER * 2.5 : RECENTER; // fast flight: fewer, larger shifts
+    if (dx * dx + dz * dz > reach * reach) this.recenter(this.feet.x, this.feet.z);
+    else if (this.propsDue) { this.propsDue = false; this.props.rebuild(this.center.x, this.center.z); }
+    this.waterSurface?.update(dt, this.camera.position.x, this.camera.position.z, this.scene.background);
+    this.sky.update(dt, this.camera.position, this.underwater);
     this.props.update(dt, this.camera.position);
     this.far?.update(this.feet.x, this.feet.z, this.center);
     this.earth?.update(dt, this.camera.position);
@@ -163,7 +169,7 @@ export class SurfaceView {
 
   move(dt, input) {
     const sprint = input.down('ShiftLeft') || input.down('ShiftRight');
-    const speed = sprint ? SPRINT : WALK;
+    const speed = this.swim?.active ? (sprint ? SWIM_SPRINT : SWIM_SPEED) : sprint ? SPRINT : WALK;
     let f = (input.down('KeyW') ? 1 : 0) - (input.down('KeyS') ? 1 : 0);
     let s = (input.down('KeyD') ? 1 : 0) - (input.down('KeyA') ? 1 : 0);
     const len = Math.hypot(f, s);
@@ -179,6 +185,7 @@ export class SurfaceView {
   }
 
   applyGravity(dt, input) {
+    if (this.swim?.step(dt, input)) return;
     const g = this._planet.gravity || 9.8;
     const floor = this.floorAt(this.feet.x, this.feet.z);
     if (this.onGround && input.pressed('Space')) {
@@ -211,7 +218,8 @@ export class SurfaceView {
     this.camera.position.copy(this.head);
     if (!this.thirdPerson || !this.h) return;
     this.camera.position.add(_off.copy(CHASE).applyEuler(this.camera.rotation));
-    const ground = this.floorAt(this.camera.position.x, this.camera.position.z) + 0.4;
+    const cx = this.camera.position.x, cz = this.camera.position.z;
+    const ground = (this.swim ? this.h(cx, cz) : this.floorAt(cx, cz)) + 0.4;
     if (this.camera.position.y < ground) this.camera.position.y = ground; // never under the terrain
   }
 
@@ -239,16 +247,12 @@ export class SurfaceView {
     this.patch.dispose();
     this.far?.dispose();
     this.earth?.dispose();
-    if (this.water) {
-      this.scene.remove(this.water);
-      this.water.geometry.dispose();
-      this.water.material.dispose();
-    }
+    this.waterSurface?.dispose();
     this.sky.dispose();
     this.props.dispose();
     this.landed?.dispose();
     this.avatar?.dispose();
-    this.terrain = this.patch = this.far = this.earth = this.water = this.sky = this.props = this.landed = this.avatar = null;
+    this.terrain = this.patch = this.far = this.earth = this.swim = this.waterSurface = this.water = this.sky = this.props = this.landed = this.avatar = null;
     this._planet = null;
   }
 }

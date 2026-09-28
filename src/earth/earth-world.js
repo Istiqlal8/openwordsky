@@ -7,7 +7,8 @@ export class EarthWorld {
     this.view = view;
     this.grass = new EarthGrass(view.scene, view.patch, view.props);
     this.forest = view.far ? new FarForest(view.scene) : null;
-    if (view.far) view.far.onBuilt = (far) => this.forest.rebuild(far.grid, view.h);
+    this.forestDue = false; // rebuilt the frame after the far ring swaps, to spread the work
+    if (view.far) view.far.onBuilt = () => { this.forestDue = true; };
   }
 
   // The terrain patch moved (or clear zones changed with a rebuild).
@@ -16,6 +17,7 @@ export class EarthWorld {
   update(dt, cam) {
     this.grass.update(cam);
     this.forest?.update(this.view.center);
+    if (this.forestDue) { this.forestDue = false; this.forest.rebuild(this.view.far.grid, this.view.h); }
   }
 
   dispose() {

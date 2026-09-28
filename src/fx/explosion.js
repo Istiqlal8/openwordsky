@@ -133,7 +133,7 @@ export class FxSystem {
     const it = b.items[b.next];
     b.next = (b.next + 1) % b.items.length;
     const len = from.distanceTo(to);
-    const w = 0.12 + len * 0.002;
+    const w = 0.22 + len * 0.003;
     it.mesh.position.copy(from);
     it.mesh.lookAt(to);
     it.mesh.scale.set(w, w, len);

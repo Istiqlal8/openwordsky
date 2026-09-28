@@ -1,6 +1,9 @@
 // Multitool mining beam: hold LMB on flora/rocks to harvest them.
 import * as THREE from 'three';
 import { BeamVisual } from './beam-visual.js';
+import { floraMaterial } from '../quest/materials.js';
+import { endemicOf, ENDEMIC_CHANCE } from '../quest/endemic.js';
+import { upgradeMul } from '../craft/upgrades.js';
 
 const RANGE = 30;
 const TIME = { flora: 1.2, rock: 2.0 }; // seconds of beam contact to harvest
@@ -30,19 +33,21 @@ export class MiningTool {
     this.muzzle = new THREE.Vector3();
     this.beam = new BeamVisual(ctx.surface.scene, AMBER);
     this._target = { label: '', progress: 0 };
+    this.endemic = endemicOf(ctx.planet);
   }
 
   // Returns the number of items harvested this frame (0 most frames).
   update(dt, holding) {
+    this.ray.far = RANGE * upgradeMul(this.ctx.player, 'beamRange');
     this.hit = this.aim();
     this.trackTarget();
     this.setActive(holding);
     if (!holding) return 0;
     const cam = this.ctx.surface.camera;
-    const end = this.hit ? this.hit.point : this.ray.ray.at(RANGE, _end);
-    this.beam.show((this.ctx.surface.muzzle?.(this.muzzle) ?? muzzleOf(cam, this.muzzle)), end, dt, Boolean(this.hit));
+    const end = this.hit ? this.hit.point : this.ray.ray.at(this.ray.far, _end);
+    this.beam.show((this.ctx.muzzle?.(this.muzzle) ?? this.ctx.surface.muzzle?.(this.muzzle) ?? muzzleOf(cam, this.muzzle)), end, dt, Boolean(this.hit));
     if (!this.hit) return 0;
-    this.progress += dt / TIME[this.kind()];
+    this.progress += dt / (TIME[this.kind()] * upgradeMul(this.ctx.player, 'beamSpeed'));
     this.emitSparks(dt);
     return this.progress >= 1 ? this.collect() : 0;
   }
@@ -86,13 +91,34 @@ export class MiningTool {
   collect() {
     const { surface, fx, sfx } = this.ctx;
     const kind = this.kind(), point = this.hit.point;
-    if (!surface.props.removeAt(this.hit.object, this.hit.instanceId)) return 0;
+    const info = surface.props.removeAt(this.hit.object, this.hit.instanceId);
+    if (!info) return 0;
     const pal = this.ctx.planet.palette;
     fx?.explode(point, { color: kind === 'rock' ? pal.rock : pal.flora, size: kind === 'rock' ? 1.2 : 0.8, debris: true });
     sfx?.pickup?.();
     this.progress = 0;
     this.key = null;
-    return this.reward(kind);
+    return this.reward(kind) + this.bonus(info);
+  }
+
+  // Plant-specific material, this planet's endemic items, catalog/quest events.
+  bonus(info) {
+    const { player } = this.ctx;
+    player.emit('act', { type: info.kind === 'rock' ? 'mine' : 'harvest' });
+    const n = this.endemicDrop(info.kind);
+    if (info.kind !== 'flora' || !info.species) return n;
+    player.emit('act', { type: 'floraSeen', name: info.species.name });
+    if (Math.random() > 0.6) return n;
+    const k = 1 + Math.floor(Math.random() * 2);
+    player.addItem(floraMaterial(info.species), k);
+    return n + k;
+  }
+
+  endemicDrop(kind) {
+    const pool = this.endemic.filter((e) => e.source === kind);
+    if (!pool.length || Math.random() > ENDEMIC_CHANCE[kind]) return 0;
+    this.ctx.player.addItem(pool[Math.floor(Math.random() * pool.length)].name, 1);
+    return 1;
   }
 
   // Grant resources; returns item count for the sentinel wanted meter.
@@ -100,7 +126,7 @@ export class MiningTool {
     const { player, planet } = this.ctx, res = planet.resources;
     let n = kind === 'rock' ? 2 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 3);
     player.addItem(MAIN[kind], n);
-    const extra = kind === 'rock' ? res[0] : res[Math.floor(Math.random() * res.length)];
+    const extra = res[Math.floor(Math.random() * res.length)]; // every local mineral is reachable
     if (extra && extra !== MAIN[kind] && Math.random() < 0.35) {
       const k = 1 + Math.floor(Math.random() * 2);
       player.addItem(extra, k);

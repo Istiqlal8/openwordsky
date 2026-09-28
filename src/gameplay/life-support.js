@@ -1,4 +1,6 @@
 // Suit life support + hazard protection drain, storms and G-key recharge.
+import { upgradeMul } from '../craft/upgrades.js';
+
 const LIFE_DRAIN = 100 / 360;    // full tank lasts ~6 minutes
 const HAZARD_DRAIN = 100 / 240;  // per hazard factor
 const HAZARD_REGEN = 4;          // per second when the planet is benign
@@ -13,10 +15,21 @@ export function hazardFactors(planet) {
   return (t < -10 || t > 45 ? 1 : 0) + (planet.radiation >= 3 ? 1 : 0) + (planet.toxicity >= 3 ? 1 : 0);
 }
 
+// Earth, and gentle lush worlds with a normal atmosphere, have breathable air.
+export function breathable(planet) {
+  if (planet.style === 'earth') return true;
+  return planet.biome.id === 'lush' && !planet.hazard && planet.atmosphereDensity >= 0.66
+    && planet.temperature >= 0 && planet.temperature <= 35;
+}
+
+const LIFE_REGEN = 5; // per second while breathing real air
+
 export class LifeSupport {
   constructor(player, planet) {
     this.player = player;
+    this.air = breathable(planet);
     this.factors = hazardFactors(planet);
+    this.heat = hazardFactors({ temperature: planet.temperature, radiation: 0, toxicity: 0 });
     this.stormy = typeof planet.weather === 'string' && planet.weather.includes('Badai');
     this.storm = false;
     this.stormT = this.nextStorm();
@@ -31,11 +44,19 @@ export class LifeSupport {
     const suit = this.player.suit;
     this.tickStorm(dt);
     const stormMul = this.storm ? 2 : 1;
-    suit.lifeSupport = Math.max(0, suit.lifeSupport - LIFE_DRAIN * dt);
-    const hz = this.factors ? -HAZARD_DRAIN * this.factors * stormMul : HAZARD_REGEN;
+    // Breathable air doesn't help underwater (set each frame by surface-mode).
+    const life = this.air && !this.submerged ? LIFE_REGEN : -LIFE_DRAIN * upgradeMul(this.player, 'oxygen') * (this.submerged ? 3 : 1);
+    suit.lifeSupport = Math.min(100, Math.max(0, suit.lifeSupport + life * dt));
+    const hz = this.factors ? -HAZARD_DRAIN * this.drainFactor() * stormMul : HAZARD_REGEN;
     suit.hazard = Math.min(100, Math.max(0, suit.hazard + hz * dt));
     this.starve('life', suit.lifeSupport, dt, 'Kehabisan oksigen');
     this.starve('hazard', suit.hazard, dt, 'Paparan bahaya');
+  }
+
+  // Crafted suit upgrades scale the heat/cold and the radiation/toxic parts separately.
+  drainFactor() {
+    const p = this.player;
+    return this.heat * upgradeMul(p, 'thermal') + (this.factors - this.heat) * upgradeMul(p, 'filter');
   }
 
   tickStorm(dt) {

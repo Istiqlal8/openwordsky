@@ -1,5 +1,6 @@
 // Inventory panel (resource grid) + compact loot feed ("+3 Ferit").
 import { el, clear, show } from './dom.js';
+import { InventoryDetail } from './inventory-detail.js';
 
 const MIN_SLOTS = 12;
 const FEED_MS = 2500;
@@ -27,9 +28,11 @@ export class Inventory {
     this.sig = null;
     this.panel = el('div', 'panel inv is-hidden');
     const head = el('div', 'inv-head');
-    head.append(el('div', 'panel-label', 'Inventaris'), el('span', 'inv-hint', 'Tab'));
+    head.append(el('div', 'panel-label', 'Inventaris'), el('span', 'inv-hint', 'Klik barang untuk detail · Tab tutup'));
     this.grid = el('div', 'inv-grid');
     this.panel.append(head, this.grid);
+    this.onUse = () => '';
+    this.detail = new InventoryDetail(this.panel, (name, action) => this.onUse(name, action));
     this.feed = el('div', 'loot-feed');
     root.append(this.panel, this.feed);
   }
@@ -55,7 +58,9 @@ export class Inventory {
     const sig = items.map(([k, n]) => `${k}:${Math.round(n)}`).join('|');
     if (sig === this.sig) return;
     this.sig = sig;
+    this.counts = Object.fromEntries(items);
     this.render(items);
+    this.detail.refresh(this.counts);
   }
 
   render(items) {
@@ -65,7 +70,9 @@ export class Inventory {
   }
 
   slot(name, n) {
-    const s = el('div', 'inv-slot');
+    const s = el('button', 'inv-slot');
+    s.type = 'button';
+    s.addEventListener('click', () => this.detail.select(name, this.counts[name] ?? n));
     s.append(resourceIcon(name), el('span', 'inv-count', String(Math.round(n))), el('span', 'inv-name', name));
     return s;
   }

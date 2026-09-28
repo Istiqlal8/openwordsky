@@ -1,6 +1,7 @@
 // Everything that runs while flying inside a star system.
 import { SpaceCombat } from '../combat/space-combat.js';
 import { SpaceTraffic } from '../npc/space-traffic.js';
+import { AlienShips } from '../aliens/index.js';
 import { Derelict } from '../surprise/derelict.js';
 import { SpaceEvents } from '../view/cosmos/space-events.js';
 
@@ -25,6 +26,7 @@ export class SpaceMode {
     Object.assign(this, { space, player, sfx });
     this.combat = new SpaceCombat(space, player, sfx);
     this.traffic = new SpaceTraffic(space);
+    this.alienShips = new AlienShips(space);
     this.derelict = new Derelict(space, { player, onLoot: (text) => player.emit('notice', { text }) });
     this.lock = false;
     player.on('lockOn', ({ locked }) => { this.lock = locked; });
@@ -32,12 +34,12 @@ export class SpaceMode {
     space.onStarBurn = (dt) => player.damageShip((space.system.star.blackHole ? 400 : 35) * dt);
     this.events = new SpaceEvents(space.scene);
     this.events.onShake = (a) => space.shake(a);
-    this.gasNotice = 0;
   }
 
   enter(system, planets, spawnNear, design) {
     this.space.mount(system, planets, { spawnNear });
     this.traffic.mount(system);
+    this.alienShips.mount(system);
     this.derelict.mount(system);
     this.events.mount(system);
     if (design) this.space.setShip?.(design);
@@ -61,13 +63,9 @@ export class SpaceMode {
     if (this.player.ship.energy <= 0) sp.setPulse(false, 'empty');
   }
 
-  // Flying into a planet's atmosphere lands automatically (gas giants refuse).
-  autoLand(target, dt) {
-    if (!target || target.distance > AUTO_LAND_GAP(target.planet.radius)) return null;
-    if (!target.planet.gas) return target.planet;
-    this.gasNotice -= dt;
-    if (this.gasNotice <= 0) { this.gasNotice = 4; this.player.emit('notice', { text: 'Planet gas: tidak bisa mendarat' }); }
-    return null;
+  // Flying into a planet's atmosphere lands automatically (gas giants: an in-ship dive).
+  autoLand(target) {
+    return target && target.distance <= AUTO_LAND_GAP(target.planet.radius) ? target.planet : null;
   }
 
   update(dt, input) {
@@ -76,6 +74,7 @@ export class SpaceMode {
     if (alive) this.pulse(dt, input);
     this.space.update(dt, inp);
     this.traffic.update(dt);
+    this.alienShips.update(dt);
     this.events.update(dt, this.space.camera);
     this.derelict.update(dt, this.space.shipObject.position);
     this.combat.update(dt, inp);
@@ -83,7 +82,7 @@ export class SpaceMode {
     this.sfx.alarm(alive && this.player.ship.hull < 25);
     const target = this.space.targetPlanet();
     return {
-      target, looked: this.space.lookedPlanet(), landOn: alive ? this.autoLand(target, dt) : null,
+      target, looked: this.space.lookedPlanet(), landOn: alive ? this.autoLand(target) : null,
       hostiles: this.combat.hostiles, lock: this.lock, boostAllowed: this.combat.boostAllowed,
       pulse: this.space.pulsing, npcShip: this.traffic.nearest(this.space.ship.position, 300),
     };
@@ -97,5 +96,6 @@ export class SpaceMode {
     this.space.update(dt, IDLE);
     this.events.update(dt, this.space.camera);
     this.traffic.update(dt);
+    this.alienShips.update(dt);
   }
 }
