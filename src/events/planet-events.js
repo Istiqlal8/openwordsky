@@ -4,8 +4,9 @@
 import { MeteorShower } from './meteor-shower.js';
 import { Migration } from './migration.js';
 import { Bloom } from './bloom.js';
+import { Eclipse } from '../eclipse/eclipse-event.js';
 
-const EVENTS = { meteor: MeteorShower, migrasi: Migration, mekar: Bloom };
+const EVENTS = { meteor: MeteorShower, migrasi: Migration, mekar: Bloom, gerhana: Eclipse };
 const FIRST = [90, 180];   // seconds after landing before the first event may start
 const GAP = [180, 300];    // quiet time between events
 const RETRY = 30;          // an event that cannot run here (no herd) tries again soon

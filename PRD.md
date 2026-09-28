@@ -153,6 +153,16 @@ Added in v1.5:
   Bayangan) with more health, a shorter trigger and a bigger payout, until the fourth, which it
   does not walk away from. Debug: `__duel.grudge()`, `__duel.hunt(id, level)`, `__duel.forgive()`.
 
+- **Gerhana** (planet event, src/eclipse/): a moon slides in front of the star. Daylight drains over
+  25 s, holds near-dark for 45 s, then comes back. It drives the real sky rather than faking one:
+  the event wraps `DayCycle.advance` for its lifetime and pulls `daylight` down while raising
+  `nightFactor`, so everything downstream follows for free — fog, stars, dusk glow, base lights,
+  and the night flora opening in the middle of the afternoon. An opaque disc crosses the sun
+  sprite, writing depth, so the occultation is real. While it is total the sentinel patrol loses
+  the player (`clearHostiles` plus a held-down wanted meter). Only on planets with moons, and
+  likelier the more they have: 18% at one, 70% at three. Everything is restored on dispose — the
+  mutated cycle comes back bit-identical. Debug: `__eclipse.start() / .phase() / .cover() / .skip()`.
+
 - **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
   then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,
   fences and decor, plus manual stations: a planter you sow and harvest with `T`, a pen you lure a
