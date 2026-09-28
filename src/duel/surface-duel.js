@@ -37,8 +37,10 @@ export class SurfaceDuel {
     if (this.rival.deadT > 9) this.drop();
   }
 
+  // Transforming is the answer to the challenge: a rival already down here stops holding back.
   provoke() {
-    if (this.rival || this.wait <= PROVOKED) return;
+    if (this.rival) { this.rival.brain.engage(); return; }
+    if (this.wait <= PROVOKED) return;
     this.wait = PROVOKED;
   }
 

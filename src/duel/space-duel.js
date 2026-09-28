@@ -43,9 +43,11 @@ export class SpaceDuel {
     if (this.rival.tickDeath(dt)) this.drop();
   }
 
-  // The player standing in their own mech is an invitation: bring the next challenge forward.
+  // The player standing in their own mech is an invitation: a rival already out there drops its
+  // restraint, and the next challenge comes forward.
   provoke() {
-    if (this.rival || this.wait <= PROVOKED) return;
+    if (this.rival) { this.rival.ai.engage(); return; }
+    if (this.wait <= PROVOKED) return;
     this.wait = PROVOKED;
   }
 
