@@ -18,6 +18,7 @@ import { RaidMeta } from '../raid/raid-meta.js';
 import { MechAddon } from '../mech/mech-addon.js';
 import { DuelMeta } from '../duel/duel-meta.js';
 import { TwinMeta } from '../twin/twin-meta.js';
+import { DeadStarAddon } from '../deadstar/deadstar-addon.js';
 export const ADDONS = [
   MissionsAddon,
   GuideAddon,
@@ -33,4 +34,5 @@ export const ADDONS = [
   MechAddon,
   DuelMeta,
   TwinMeta,
+  DeadStarAddon,
 ];

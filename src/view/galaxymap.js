@@ -9,6 +9,7 @@ import {
 import { drawEventMarker } from '../devourer/map-marker.js';
 import { drawVoidFauna } from '../surprise/void-map-marker.js';
 import { hunt, setHunt } from '../prospect/prospect-hunt.js';
+import { drawDeadStar } from '../deadstar/map-marker.js';
 
 const START_SCALE = 1.6;
 const MIN_SCALE = 0.25;
@@ -144,6 +145,7 @@ export class GalaxyMap {
     if (hunt.hit) drawMarker(ctx, cam, hunt.hit.system, HUNT_COLOR, hunt.item);
     drawVoidFauna(ctx, cam, systems, this.visited, time);
     drawEventMarker(ctx, cam, systems, time);
+    drawDeadStar(ctx, cam, systems, time);
   }
 
   // Search for a material and put the result under the cursor: selecting it arms the Warp button,

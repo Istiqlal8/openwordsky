@@ -171,6 +171,27 @@ Added in v1.5:
   Alien) and the transponder goes dark for good, though the wreck stays where it is. Nothing is
   ever explained. Debug: `__twin.spawn() / .read() / .log() / .state()`.
 
+- **Bintang mati** (src/deadstar/): a supernova used to be scenery. Now 97 of the 4096 stars can
+  actually die — short-lived giants mostly, never home, never a black hole. If the player is in the
+  system when it goes they get 26 seconds: three warnings, rising tremors, the sky bleaching out,
+  then the blast. It hurts badly and clamps above a killing blow; warping out ends it and still
+  counts as surviving. Afterwards the system is a grave forever: an ashen remnant where the star
+  was, every planet renamed "(Hangus)" with no life and a scorched crust, and a marker on the
+  galaxy map. `planetsOf` funnels every planet through `scorch()` the same way it already funnels
+  them through the devourer's `husk()`, so the death is generated, not stored per-planet. The crust
+  carries **Debu Bintang**, which exists nowhere else in the galaxy — a corpse is the only source.
+  Debug: `__deadstar.kill(index) / .list() / .isDead(i) / .skip(s) / .fated(i)`.
+
+- **Cari material** (tombol `Cari material` di peta galaksi `M`, src/prospect/): pick a material and
+  the map finds the nearest planet that yields it. The search sweeps the 160 nearest systems and
+  reads each planet straight out of its seed — `planet.resources`, the biome's ground pickups and
+  the three items endemic to it — so it never needs the world loaded, answers in under half a
+  second and is cached per query. The result system is marked in green, selected and centred, so
+  the Warp button is one click away; reopening the map re-aims the hunt from wherever you are now.
+  After landing, the on-foot guide markers point at the hunted item when it is something lying on
+  the ground. Flora and fauna materials are deliberately not searchable: they depend on which
+  species rolled, which would cost a full makeSpecies() for every planet in the sweep.
+
 - **Base building** (`Y` on foot, src/build/): plant a Suar Markas to claim one base per planet,
   then build it piece by piece — foundations, walls, windows, doors, roofs, pillars, stairs, ramps,
   fences and decor, plus manual stations: a planter you sow and harvest with `T`, a pen you lure a
