@@ -193,11 +193,11 @@ export class MechPose {
       const free = 1 - hold, tuck = Math.min(1, drive + boost * 0.5);
       const k = Math.max(-1, Math.min(1, arm.side * lat));   // the two arms never mirror each other
       arm.upper.rotation.x = approach(arm.upper.rotation.x,
-        (0.18 + tuck * 0.2 + sway * 0.05 * (1 - tuck) - k * 0.55) * free, dt, 6);
+        (0.16 + tuck * 0.14 + sway * 0.05 * (1 - tuck) - k * 0.26) * free, dt, 6);
       arm.upper.rotation.z = approach(arm.upper.rotation.z,
-        -arm.side * (0.26 - tuck * 0.2 + wide * 1.15) * free, dt, 6);   // thrown wide in a break
+        -arm.side * (0.2 - tuck * 0.14 + wide * 0.45) * free, dt, 6);   // opened, never starfished
       arm.fore.rotation.x = approach(arm.fore.rotation.x,
-        (-0.5 - tuck * 0.75 * (1 - wide * 0.75) + k * 0.34) * free, dt, 6);
+        (-0.45 - tuck * 0.55 * (1 - wide * 0.6) + k * 0.2) * free, dt, 6);
     }
   }
 
