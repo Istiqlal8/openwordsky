@@ -8,9 +8,14 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 // yaw: degrees about Y to bring the model's nose onto the ship convention (local -Z).
+// pitch, roll: degrees about X and Z that level the model once the yaw has turned it. A sculpted
+//   export is posed, not axis-aligned, so all three are measured from renders of the file.
 // length: the model's own nose-to-tail size, used to scale it to the design's length in metres.
+// keep: which procedural parts survive the swap. A hull with its own engines modelled into it
+//   leaves 'engines' out, so no painted flame burns over a nozzle the file already draws.
 export const GLB_HULLS = {
-  crimson: { file: 'ship-crimson', yaw: -90, length: 1.9, lift: 0 },
+  crimson: { file: 'ship-crimson', yaw: -90, length: 1.9, lift: 0, keep: ['engines', 'legs'] },
+  vanguard: { file: 'ship-vanguard', yaw: 140.5, pitch: 12.8, roll: 30.5, length: 0.945, lift: 0, keep: ['legs'] },
 };
 
 const BASE = new URL('../../../assets/models/', import.meta.url).href;
@@ -42,11 +47,14 @@ function instance(scene, spec, metres, mat) {
   hull.traverse((o) => { if (o.isMesh) o.material = mat; }); // one material for the whole hull
   const holder = new THREE.Group();
   holder.add(hull);
-  holder.rotation.y = THREE.MathUtils.degToRad(spec.yaw);
+  const deg = THREE.MathUtils.degToRad;
+  // 'XZY' applies the yaw first, so pitch and roll level the model in ship space, where they were
+  // measured, rather than in the file's own tilted frame.
+  holder.rotation.set(deg(spec.pitch ?? 0), deg(spec.yaw), deg(spec.roll ?? 0), 'XZY');
   const box = new THREE.Box3().setFromObject(holder);
   const c = box.getCenter(new THREE.Vector3());
   const s = metres / spec.length;
-  hull.position.sub(c.applyAxisAngle(new THREE.Vector3(0, 1, 0), -holder.rotation.y));
+  hull.position.sub(c.applyQuaternion(holder.quaternion.clone().invert()));
   holder.scale.setScalar(s);
   holder.position.y = spec.lift * s;
   return holder;
@@ -65,10 +73,11 @@ function hullMaterial(scene) {
 }
 
 // Replaces `model`'s procedural hull with the sculpted one once the file is in.
-// keep: parts of the group that must survive the swap (engines, landing legs).
-export function attachGlbHull(model, design, mats, keep) {
+// parts: the procedural groups the spec's `keep` list may name (engines, legs).
+export function attachGlbHull(model, design, mats, parts) {
   const spec = GLB_HULLS[design.glb];
   if (!spec) return;
+  const keep = spec.keep.map((name) => parts[name]);
   const swap = (scene) => {
     if (model.disposed) return;
     for (const child of [...model.group.children]) {

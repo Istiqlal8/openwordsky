@@ -46,6 +46,6 @@ export function buildShip(design) {
     setLegs: (down) => { legs.group.visible = down; },
     dispose: () => { model.disposed = true; disposeGroup(group); },
   };
-  if (design.glb) attachGlbHull(model, design, mats, [eng.group, legs.group]);
+  if (design.glb) attachGlbHull(model, design, mats, { engines: eng.group, legs: legs.group });
   return model;
 }

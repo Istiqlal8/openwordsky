@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#12151b}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.js","three/addons/":"../vendor/addons/"}}</script></head>
+<body><canvas id="c"></canvas><script type="module">
+import * as THREE from 'three';
+import { buildShip } from '../src/view/ship/ship-model.js';
+import { shipDesign } from '../src/view/ship/ship-design.js';
+const r = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+r.setSize(700,480); r.setPixelRatio(2); r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace;
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x12151b);
+sc.add(new THREE.HemisphereLight(0xdfefff,0x404050,2.0));
+const k = new THREE.DirectionalLight(0xffffff,2.4); k.position.set(3,5,4); sc.add(k);
+const f = new THREE.DirectionalLight(0x99bbff,1.0); f.position.set(-4,2,-3); sc.add(f);
+const grid = new THREE.GridHelper(40, 20, 0x446688, 0x223344); sc.add(grid);
+const cam = new THREE.PerspectiveCamera(30, 700/480, 0.1, 500);
+let model = null;
+window.__load = (seed) => {
+  if (model) { sc.remove(model.group); model.dispose(); }
+  model = buildShip(shipDesign(seed));
+  sc.add(model.group);
+  return { length: model.length, children: model.group.children.length };
+};
+window.__thrust = (t) => model.setThrust(t);
+window.__legs = (d) => model.setLegs(d);
+// eye: 'side' +X, 'front' -Z (nose toward camera), 'top' +Y, 'q34'
+window.__shot = (eye, d = 14) => {
+  const p = { side:[d,0.6,0], front:[0,0.6,-d], back:[0,0.6,d], top:[0,d,0], q34:[d*0.7,d*0.35,-d*0.7] }[eye];
+  cam.up.set(0, eye === 'top' ? 0 : 1, eye === 'top' ? -1 : 0);  // looking down: put the nose up-frame
+  cam.position.set(p[0],p[1],p[2]); cam.lookAt(0,0,0); r.render(sc,cam);
+};
+window.__ready = true;
+</script></body></html>
