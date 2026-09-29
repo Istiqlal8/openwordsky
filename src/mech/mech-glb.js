@@ -1,18 +1,24 @@
-// Loads the rigged Gundam GLB once, normalizes it to mech space and hands out clones.
+// Loads each rigged mech GLB once, normalizes it to mech space and hands out clones.
 //
 // Normalized convention (template and clones): forward -Z, up +Y, right +X, height exactly 1,
 // feet at y = 0, centred on X/Z — so a caller scales the root by the mech's height in metres.
-// The file ships without animation clips; mech-skin.js drives the skeleton from the same
+// Any animation clips in the file are ignored; mech-skin.js drives the skeleton from the same
 // procedural rig mech-pose.js already animates.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { mapMechRig, measureRig } from './mech-rig-map.js';
 
-const FILE = new URL('../../assets/models/mech-gundam.glb', import.meta.url).href;
+// Which mech a pilot climbs into, keyed by the sculpted hull of the ship they fly, so the robot
+// matches the ship it unfolds from. A design with no sculpted hull keeps the white Gundam.
+const SKINS = { crimson: 'mech-gundam', vanguard: 'mech-vanguard' };
+const DEFAULT_SKIN = 'mech-gundam';
+const fileOf = (name) => new URL(`../../assets/models/${name}.glb`, import.meta.url).href;
 
-let template = null;
-let pending = null;
+export const skinFor = (design) => SKINS[design?.glb] ?? DEFAULT_SKIN;
+
+const templates = new Map(); // name -> template
+const pending = new Map();   // name -> Promise<template>
 
 const nameOf = (b) => b?.name ?? null;
 
@@ -49,17 +55,25 @@ function normalize(scene) {
 }
 
 // Starts the fetch. Safe to call repeatedly; a failure is logged once and never retried.
-export function preloadMechSkin() {
-  if (pending) return pending;
-  pending = new GLTFLoader().loadAsync(FILE).then((g) => { template = normalize(g.scene); return template; });
-  pending.catch((e) => console.warn('mech model failed to load, using the procedural frame', e));
-  return pending;
+export function preloadMechSkin(name = DEFAULT_SKIN) {
+  if (pending.has(name)) return pending.get(name);
+  const p = new GLTFLoader().loadAsync(fileOf(name))
+    .then((g) => { const tpl = normalize(g.scene); templates.set(name, tpl); return tpl; });
+  p.catch((e) => console.warn(`mech model ${name} failed to load, using the procedural frame`, e));
+  pending.set(name, p);
+  return p;
+}
+
+// Every sculpted mech, warmed at startup. A skin that only begins downloading when the player
+// first transforms would hand them the procedural frame for that whole transformation.
+export function preloadMechSkins() {
+  for (const name of new Set([DEFAULT_SKIN, ...Object.values(SKINS)])) preloadMechSkin(name);
 }
 
 // The template once it is in memory, else null (the procedural mech is the fallback).
-export function readyMechSkin() {
-  if (!pending) preloadMechSkin();
-  return template;
+export function readyMechSkin(name = DEFAULT_SKIN) {
+  if (!pending.has(name)) preloadMechSkin(name);
+  return templates.get(name) ?? null;
 }
 
 // Independent skeleton, shared geometry. The material is cloned so each ship can tint its own.
@@ -86,6 +100,9 @@ export function tintSkin(material, palette, cls) {
   const lift = 1 / Math.max(0.35, 1 - TINT + TINT * Math.max(hull.r, hull.g, hull.b));
   material.color.setRGB(1, 1, 1).lerp(hull, TINT).multiplyScalar(lift);
   material.emissive = new THREE.Color(palette.glow);
+  // Through the base map, so the self-light carries the model's own paint. Flat white emissive
+  // washes a saturated hull toward pink; multiplied by the texture it just keeps the paint lit.
+  material.emissiveMap = material.map;
   material.emissiveIntensity = cls === 'exotic' ? 0.09 : 0.045;
   // The file ships fully metallic, which renders black in a scene with no environment map: the
   // armour needs to be mostly dielectric so the sun actually lands on it.

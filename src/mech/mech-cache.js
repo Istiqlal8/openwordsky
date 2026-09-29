@@ -3,19 +3,20 @@
 // the procedural frame from mech-model.js stands in, so the game never breaks on a bad network.
 import { mechDesign } from './mech-design.js';
 import { buildMech } from './mech-model.js';
-import { preloadMechSkin, readyMechSkin, fitDesign } from './mech-glb.js';
+import { preloadMechSkins, readyMechSkin, fitDesign, skinFor } from './mech-glb.js';
 import { attachSkin } from './mech-skin.js';
 
 let cached = null;
 
-preloadMechSkin();
+preloadMechSkins();
 
 // Returns the mech rig for a ship design, building it on first use.
 export function mechFor(design) {
-  const tpl = readyMechSkin();
+  const skin = skinFor(design);
+  const tpl = readyMechSkin(skin);
   const m = mechDesign(design);
   if (tpl) fitDesign(m, tpl);
-  const key = `${m.key}:${tpl ? 'glb' : 'proc'}`;
+  const key = `${m.key}:${tpl ? skin : 'proc'}`;
   if (cached && cached.key === key) return cached.mech;
   releaseMech();
   const mech = buildMech(m);
